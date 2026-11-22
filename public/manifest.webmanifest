@@ -1,0 +1,17 @@
+{
+  "name": "Nokoué Rush",
+  "short_name": "Nokoué Rush",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#083038",
+  "theme_color": "#083038",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
