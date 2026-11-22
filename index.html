@@ -49,6 +49,11 @@
           </div>
         </div>
         <p id="equipped" class="equipped">Planche · Pirogue Bleue</p>
+        <p id="rank" class="equipped">Rang · Coursier</p>
+        <div class="duo">
+          <button id="open-missions" class="btn secondary slim" type="button">Missions</button>
+          <button id="open-board" class="btn secondary slim" type="button">Classement</button>
+        </div>
         <button id="open-shop" class="btn secondary" type="button">Boutique des planches</button>
         <ul class="hints">
           <li><b>← →</b> voie</li>
@@ -89,6 +94,7 @@
         </div>
         <button id="pause-btn" class="icon-btn" type="button" aria-label="Pause">II</button>
       </div>
+      <p id="zone-label" class="zone-label">Marché Dantokpa</p>
       <p id="danger" class="danger hidden">Sènou se rapproche !</p>
       <p id="hint" class="hint"></p>
       <div class="hud-bottom">
@@ -155,12 +161,54 @@
             <strong id="over-wallet">0</strong>
           </div>
         </div>
+        <p id="board-note" class="fine"></p>
+        <label class="pseudo">
+          Pseudo
+          <input id="pseudo" maxlength="16" autocomplete="nickname" placeholder="Ton nom de course" />
+        </label>
         <div class="stack">
           <button id="retry" class="btn" type="button">Rejouer</button>
-          <button id="over-shop" class="btn secondary" type="button">Boutique</button>
+          <button id="publish" class="btn secondary" type="button">Publier le score</button>
+          <button id="over-shop" class="btn ghost" type="button">Boutique</button>
           <button id="home" class="btn ghost" type="button">Accueil</button>
         </div>
       </div>
+    </section>
+
+    <section id="missions" class="shop hidden" aria-label="Missions">
+      <header class="shop-head">
+        <button id="missions-back" class="text-btn" type="button">Retour</button>
+        <div>
+          <h2>Missions</h2>
+          <p id="mission-rank">Rang 1 · Coursier</p>
+        </div>
+        <p class="shop-purse">Série <strong id="streak">0</strong> j</p>
+      </header>
+      <article class="mission daily">
+        <div>
+          <p class="eyebrow dark">Défi du jour</p>
+          <h3 id="daily-label">Aujourd’hui</h3>
+          <p id="daily-meter" class="meter"></p>
+        </div>
+        <button id="daily-claim" class="btn small" type="button">Récupérer</button>
+      </article>
+      <div id="mission-list" class="shop-list"></div>
+    </section>
+
+    <section id="board" class="shop hidden" aria-label="Classement">
+      <header class="shop-head">
+        <button id="board-back" class="text-btn" type="button">Retour</button>
+        <div>
+          <h2>Classement</h2>
+          <p id="board-mode">Sur cet appareil</p>
+        </div>
+      </header>
+      <label class="pseudo light">
+        Pseudo
+        <input id="board-pseudo" maxlength="16" autocomplete="nickname" placeholder="Ton nom de course" />
+      </label>
+      <p id="personal" class="fine">Ton meilleur score apparaîtra ici.</p>
+      <ol id="board-list" class="board-list"></ol>
     </section>
 
     <script type="module" src="/src/main.ts"></script>

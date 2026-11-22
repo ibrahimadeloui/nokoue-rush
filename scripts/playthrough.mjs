@@ -206,6 +206,37 @@ await new Promise((r) => setTimeout(r, 100))
 s = await state()
 assert('double tap board', s.shield === true, s)
 
+await page.evaluate(() => window.__nokoue.menu())
+await new Promise((r) => setTimeout(r, 300))
+await page.evaluate(() => document.querySelector('#open-missions').click())
+await page.waitForSelector('#mission-list .mission')
+const missionText = await page.$eval('#missions', (el) => el.innerText)
+assert(
+  'missions',
+  ['Ramasse 300 cauris', 'Esquive 10 taxis', 'Glisse sous 5 banderoles'].every((line) => missionText.includes(line)),
+  missionText.slice(0, 240),
+)
+await page.screenshot({ path: `${OUT}/missions.png` })
+await page.evaluate(() => document.querySelector('#missions-back').click())
+
+await page.evaluate(() => window.__nokoue.setPseudo('Aicha'))
+const bad = await page.evaluate(() => window.__nokoue.debugSubmit(999999, 2, 10, 1))
+assert('cheat rejected', bad.ok === false, bad)
+const good = await page.evaluate(() => window.__nokoue.debugSubmit(120, 8, 100, 6))
+assert('score accepted', good.ok === true, good)
+await page.evaluate(() => document.querySelector('#open-board').click())
+await page.waitForFunction(() => document.body.innerText.includes('Aicha'))
+await new Promise((r) => setTimeout(r, 250))
+await page.screenshot({ path: `${OUT}/classement.png` })
+
+for (const zone of ['marche', 'lagune', 'porto', 'plage']) {
+  await page.evaluate((id) => window.__nokoue.debugZone(id), zone)
+  await new Promise((r) => setTimeout(r, 350))
+  s = await state()
+  assert(`zone ${zone}`, s.zoneId === zone && s.phase === 'playing', s.zoneName)
+  await page.screenshot({ path: `${OUT}/zone-${zone}.png` })
+}
+
 const failed = report.filter((item) => !item.ok)
 console.log(JSON.stringify({ failed: failed.length, report, logs: logs.slice(0, 40) }, null, 2))
 await browser.close()

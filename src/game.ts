@@ -1,9 +1,18 @@
 import * as THREE from 'three'
-import { AudioBus } from './audio'
+import { AudioBus, type MusicCue } from './audio'
 import { boardById, type BoardId, type Perk } from './boards'
+import { createLeaderboard, type LeaderboardAdapter, type SubmitResult } from './leaderboard'
 import { Input, type Action } from './input'
 import {
-  makeBanner,
+  addProgress,
+  claimDaily,
+  claimMission,
+  rankFor,
+  sanitizePseudo,
+  type MissionKind,
+  type ProgressSave,
+} from './missions'
+import {
   makeBarrel,
   makeCloud,
   makeCoin,
@@ -14,12 +23,15 @@ import {
   makeMult,
   makeRunner,
   makeSegment,
+  makeSky,
   makeSun,
   makeTaxi,
+  makeZoneBanner,
   type CopParts,
   type RunnerParts,
 } from './models'
-import { loadSave, writeSave } from './save'
+import { loadSave, writeSave, type SaveData } from './save'
+import { zoneAt, zoneById, type ZoneId } from './zones'
 
 export type Phase = 'menu' | 'playing' | 'paused' | 'over'
 
@@ -49,6 +61,22 @@ export interface Snapshot {
   sliding: boolean
   speed: number
   distance: number
+  zoneId: ZoneId
+  zoneName: string
+  zoneCity: string
+  rankName: string
+  rankLevel: number
+  xp: number
+  xpNext: number
+  missions: ProgressSave['missions']
+  dailyLabel: string
+  dailyProgress: number
+  dailyTarget: number
+  dailyClaimed: boolean
+  streak: number
+  pseudo: string
+  boardMode: 'local' | 'supabase'
+  boardNote: string
 }
 
 const LANES = [-1.42, 0, 1.42]
@@ -120,6 +148,7 @@ interface Ent {
   hd: number
   value: number
   spin: number
+  marked: boolean
 }
 
 interface Spark {
@@ -197,6 +226,17 @@ export class Game {
   private dirty = false
   private saveWait = 0
   private copScale = 0.8
+  private progress: ProgressSave
+  private readonly leaderboard: LeaderboardAdapter
+  private boardNote = ''
+  private shownZone: ZoneId = 'marche'
+  private runTime = 0
+  private hornCool = 0
+  private pose = { lL: 0, lR: 0, kL: 0, kR: 0, aL: 0, aR: 0, bx: 0, by: 0, bz: 0 }
+  private readonly slots: { root: THREE.Group; zone: ZoneId; variant: number }[] = []
+  private readonly zoneProtos: Record<ZoneId, THREE.Group[]>
+  private readonly sky: ReturnType<typeof makeSky>
+  private readonly fogTarget = new THREE.Color()
   private last = performance.now()
   private raf = 0
 
@@ -210,8 +250,11 @@ export class Game {
     this.owned = save.owned
     this.equipped = save.equipped
     this.muted = save.muted
+    this.progress = save
     this.perk = boardById(this.equipped).perk
     this.audio.setMuted(this.muted)
+    this.audio.setZone('menu')
+    this.leaderboard = createLeaderboard()
 
     this.renderer = new THREE.WebGLRenderer({
       canvas,
@@ -227,22 +270,34 @@ export class Game {
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.1, 140)
     this.input = new Input(canvas)
 
-    const hemi = new THREE.HemisphereLight(0xfff4dd, 0xc48b62, 1.25)
-    const sun = new THREE.DirectionalLight(0xfff8ee, 1.45)
-    sun.position.set(2.5, 12, 10)
-    const rim = new THREE.DirectionalLight(0x9ad7ff, 0.4)
-    rim.position.set(-5, 6, -12)
-    this.scene.add(hemi, sun, rim)
+    const hemi = new THREE.HemisphereLight(0xfff1d2, 0xd08a58, 1.45)
+    const sun = new THREE.DirectionalLight(0xfff6df, 1.7)
+    sun.position.set(4, 14, 8)
+    const rim = new THREE.DirectionalLight(0x8fd4ff, 0.55)
+    rim.position.set(-6, 5, -10)
+    const fill = new THREE.DirectionalLight(0xffb36b, 0.35)
+    fill.position.set(-2, 6, 12)
+    this.scene.add(hemi, sun, rim, fill)
 
+    this.sky = makeSky()
+    this.scene.add(this.sky.mesh)
     const sunMesh = makeSun()
-    sunMesh.position.set(-2.4, 7.2, -16)
+    sunMesh.position.set(-2.2, 8.4, -18)
     this.scene.add(sunMesh)
 
+    this.zoneProtos = {
+      marche: [makeSegment('marche', 0), makeSegment('marche', 1)],
+      lagune: [makeSegment('lagune', 0), makeSegment('lagune', 1)],
+      porto: [makeSegment('porto', 0), makeSegment('porto', 1)],
+      plage: [makeSegment('plage', 0), makeSegment('plage', 1)],
+    }
     for (let i = 0; i < SEG_COUNT; i++) {
-      const segment = makeSegment(i)
-      segment.position.z = 10 - i * SEG
-      this.segments.push(segment)
-      this.scene.add(segment)
+      const root = new THREE.Group()
+      root.position.z = 10 - i * SEG
+      const slot = { root, zone: 'marche' as ZoneId, variant: i % 2 }
+      this.slots.push(slot)
+      this.scene.add(root)
+      this.dressSlot(slot, 'marche')
     }
 
     for (let i = 0; i < 4; i++) {
@@ -269,8 +324,8 @@ export class Game {
     this.pool('barrel', makeBarrel(), 8)
     this.pool('taxi', makeTaxi(), 6)
     this.pool('keke', makeKeke(), 6)
-    this.pool('banner', makeBanner('TISSUS', false), 6)
-    this.pool('banner3', makeBanner('GLISSE', true), 3)
+    this.pool('banner', makeZoneBanner(false), 6)
+    this.pool('banner3', makeZoneBanner(true), 3)
     this.pool('coin', makeCoin(), 56)
     this.pool('magnet', makeMagnet(), 3)
     this.pool('mult', makeMult(), 3)
@@ -335,6 +390,12 @@ export class Game {
     this.newBest = false
     this.perk = boardById(this.equipped).perk
     this.shake = 0
+    this.runTime = 0
+    this.shownZone = 'marche'
+    this.boardNote = ''
+    for (const slot of this.slots) this.dressSlot(slot, 'marche')
+    this.paintZone(zoneAt(0), 1)
+    this.audio.setZone('marche')
     for (let k = 0; k < 6; k++) this.spawnCoin(1, -12 - k * 1.7, 0.95, 1)
     this.audio.click()
     this.emit()
@@ -369,8 +430,11 @@ export class Game {
     this.py = 0
     this.vy = 0
     this.lane = 1
-    this.line = ''
     this.toast = ''
+    this.shownZone = 'marche'
+    for (const slot of this.slots) this.dressSlot(slot, 'marche')
+    this.paintZone(zoneAt(0), 1)
+    this.audio.setZone('menu')
     this.persist()
     this.emit()
   }
@@ -479,6 +543,22 @@ export class Game {
       sliding: this.sliding,
       speed: this.speedNow(),
       distance: this.distance,
+      zoneId: this.shownZone,
+      zoneName: zoneById(this.shownZone).name,
+      zoneCity: zoneById(this.shownZone).city,
+      rankName: rankFor(this.progress.xp).name,
+      rankLevel: rankFor(this.progress.xp).level,
+      xp: this.progress.xp,
+      xpNext: rankFor(this.progress.xp).next,
+      missions: this.progress.missions.map((mission) => ({ ...mission })),
+      dailyLabel: this.progress.daily.label,
+      dailyProgress: this.progress.daily.progress,
+      dailyTarget: this.progress.daily.target,
+      dailyClaimed: this.progress.daily.claimed,
+      streak: this.progress.streak,
+      pseudo: this.progress.pseudo,
+      boardMode: this.leaderboard.mode,
+      boardNote: this.boardNote,
     }
   }
 
@@ -500,8 +580,11 @@ export class Game {
     if (this.phase !== 'paused') this.scroll(speed, dt)
 
     if (this.phase === 'playing') {
+      this.runTime += dt
       this.distance += speed * dt
+      this.bump('distance', speed * dt)
       this.score += speed * dt * 2.55 * this.multNow()
+      this.syncZone()
       this.physics(dt)
       this.movePlayer(dt)
       this.spawnCool -= dt
@@ -520,6 +603,7 @@ export class Game {
         this.saveWait = 1.2
       }
     } else if (this.phase === 'menu') {
+      this.audio.setZone('menu')
       this.movePlayer(dt)
       this.moveEnts(speed, dt)
       this.menuCool -= dt
@@ -531,6 +615,8 @@ export class Game {
     }
 
     this.animate(dt)
+    this.paintZone(this.zoneAhead(), dt)
+    if (this.hornCool > 0) this.hornCool -= dt
     this.updateCop(dt)
     this.updateSparks(dt)
     this.updateCamera(dt)
@@ -568,6 +654,7 @@ export class Game {
     const boost = this.boardActive && this.perk === 'jump' ? 1.12 : 1
     this.vy = JUMP_V * boost
     this.audio.jump()
+    this.bump('jumps', 1)
   }
 
   private trySlide(): void {
@@ -662,9 +749,15 @@ export class Game {
 
   private scroll(speed: number, dt: number): void {
     const dz = speed * dt
-    for (const segment of this.segments) {
-      segment.position.z += dz
-      if (segment.position.z > 16) segment.position.z -= SEG * SEG_COUNT
+    const ahead = this.zoneAhead().id
+    for (const slot of this.slots) {
+      slot.root.position.z += dz
+      if (slot.root.position.z > 16) {
+        slot.root.position.z -= SEG * SEG_COUNT
+        this.dressSlot(slot, ahead)
+      } else if (slot.root.position.z < -12 && slot.zone !== ahead) {
+        this.dressSlot(slot, ahead)
+      }
     }
     for (const cloud of this.clouds) {
       cloud.position.z += dz * 0.28
@@ -734,12 +827,13 @@ export class Game {
     const two = Math.random() < 0.2 + diff * 0.42
     const count = two ? 2 : 1
     for (let i = 0; i < count; i++) {
-      const vehicle = this.distance > 160 && Math.random() < 0.16 + diff * 0.48
+      const bias = this.zoneBias()
+      const vehicle = this.distance > 160 && Math.random() < bias.vehicle + diff * 0.28
       const kind: Kind = vehicle
-        ? Math.random() < 0.55
+        ? Math.random() < bias.taxi
           ? 'taxi'
           : 'keke'
-        : Math.random() < 0.62
+        : Math.random() < bias.crate
           ? 'crate'
           : 'barrel'
       this.spawnObstacle(kind, lanes[i], -44)
@@ -774,7 +868,15 @@ export class Game {
         if (ent.kind === 'barrel') ent.mesh.rotation.y += dt * 1.8
         ent.mesh.position.set(ent.x, 0, ent.z)
       }
-      if (ent.z > 4) this.deactivate(ent)
+      if (!ent.marked && ent.z > -0.15 && (ent.kind === 'banner' || ent.kind === 'banner3')) {
+        ent.marked = true
+        const aligned = ent.kind === 'banner3' || Math.abs(this.playerX - ent.x) < 0.9
+        if (aligned && this.sliding && this.phase === 'playing') this.bump('slides', 1)
+      }
+      if (ent.z > 4) {
+        if (this.phase === 'playing' && ent.kind === 'taxi') this.bump('taxis', 1)
+        this.deactivate(ent)
+      }
     }
   }
 
@@ -870,7 +972,16 @@ export class Game {
     this.newBest = score > this.best
     if (this.newBest) this.best = score
     this.audio.over(this.newBest)
+    this.progress.xp += Math.floor(this.distance / 25)
+    this.lastRun = {
+      score,
+      duration: this.runTime,
+      distance: this.distance,
+      cauris: this.caurisRun,
+      zone: zoneById(this.shownZone).name,
+    }
     this.persist()
+    void this.publishScore()
     if (navigator.vibrate) navigator.vibrate([40, 30, 70])
   }
 
@@ -892,6 +1003,7 @@ export class Game {
     } else {
       this.audio.coin(this.multiplier)
     }
+    this.bump('cauris', value)
     this.burst(x, y, z, value >= 5 ? 0xff8a4a : 0xf5c542, value >= 5 ? 8 : 4)
     this.dirty = true
   }
@@ -918,33 +1030,58 @@ export class Game {
     const slide = this.sliding
     const stumble = this.stumbleT > 0
 
+    let lL = swing * 0.85
+    let lR = -swing * 0.85
+    let kL = Math.max(0, -swing) * 1.25
+    let kR = Math.max(0, swing) * 1.25
+    let aL = -swing * 0.8
+    let aR = swing * 0.8
+    let bobX = 0
+    let bobZ = 0
+    let bobY = Math.abs(Math.sin(this.runPhase * 2)) * 0.05
     if (air) {
-      this.runner.legL.rotation.x = -0.45
-      this.runner.legR.rotation.x = 0.25
-      this.runner.kneeL.rotation.x = 1.05
-      this.runner.kneeR.rotation.x = 0.7
-      this.runner.armL.rotation.x = -0.9
-      this.runner.armR.rotation.x = -0.35
+      lL = -0.7
+      lR = 0.35
+      kL = 1.15
+      kR = 0.85
+      aL = -1.05
+      aR = -0.45
+      bobY = 0
     } else if (slide) {
-      this.runner.legL.rotation.x = 0.35
-      this.runner.legR.rotation.x = 0.2
-      this.runner.kneeL.rotation.x = 1.35
-      this.runner.kneeR.rotation.x = 1.45
-      this.runner.armL.rotation.x = 0.5
-      this.runner.armR.rotation.x = 0.35
-    } else {
-      this.runner.legL.rotation.x = swing * 0.8
-      this.runner.legR.rotation.x = -swing * 0.8
-      this.runner.kneeL.rotation.x = Math.max(0, -swing) * 1.2
-      this.runner.kneeR.rotation.x = Math.max(0, swing) * 1.2
-      this.runner.armL.rotation.x = -swing * 0.75
-      this.runner.armR.rotation.x = swing * 0.75
+      lL = 0.4
+      lR = 0.25
+      kL = 1.4
+      kR = 1.5
+      aL = 0.55
+      aR = 0.4
+      bobX = -1.15
+      bobY = -0.12
+      bobZ = 0.22
     }
+    if (stumble) bobX += 0.4
+    const rate = air || slide ? 10 : 16
+    this.pose.lL = this.damp(this.pose.lL, lL, dt, rate)
+    this.pose.lR = this.damp(this.pose.lR, lR, dt, rate)
+    this.pose.kL = this.damp(this.pose.kL, kL, dt, rate)
+    this.pose.kR = this.damp(this.pose.kR, kR, dt, rate)
+    this.pose.aL = this.damp(this.pose.aL, aL, dt, rate)
+    this.pose.aR = this.damp(this.pose.aR, aR, dt, rate)
+    this.pose.bx = this.damp(this.pose.bx, bobX, dt, 10)
+    this.pose.by = this.damp(this.pose.by, bobY, dt, 12)
+    this.pose.bz = this.damp(this.pose.bz, bobZ, dt, 10)
+    this.runner.legL.rotation.x = this.pose.lL
+    this.runner.legR.rotation.x = this.pose.lR
+    this.runner.kneeL.rotation.x = this.pose.kL
+    this.runner.kneeR.rotation.x = this.pose.kR
+    this.runner.armL.rotation.x = this.pose.aL
+    this.runner.armR.rotation.x = this.pose.aR
+    this.runner.afro.rotation.x = Math.sin(this.runPhase * 2) * 0.06
+    this.runner.afro.position.y = 0.12 + Math.abs(Math.sin(this.runPhase)) * 0.02
 
-    this.runner.bob.rotation.x = (slide ? -1.15 : 0) + (stumble ? 0.4 : 0)
+    this.runner.bob.rotation.x = this.pose.bx
     this.runner.bob.rotation.z = stumble ? Math.sin(this.time * 28) * 0.16 : 0
-    this.runner.bob.position.y = (slide ? -0.12 : 0) + (air || slide ? 0 : Math.abs(Math.sin(this.runPhase * 2)) * 0.045)
-    this.runner.bob.position.z = slide ? 0.2 : 0
+    this.runner.bob.position.y = this.pose.by
+    this.runner.bob.position.z = this.pose.bz
     this.runner.root.position.set(this.playerX, this.py, 0)
     this.runner.shadow.position.y = -this.py + 0.035
     const shadowScale = 1 - Math.min(0.55, this.py * 0.32)
@@ -1071,6 +1208,7 @@ export class Game {
         hd: spec.hd,
         value: 1,
         spin: Math.random() * 6,
+        marked: false,
       })
     }
   }
@@ -1083,9 +1221,15 @@ export class Game {
     ent.x = kind === 'banner3' ? 0 : LANES[lane]
     ent.y = 0
     ent.z = z
+    ent.marked = false
     ent.mesh.visible = true
     ent.mesh.position.set(ent.x, 0, ent.z)
-    ent.mesh.rotation.set(0, kind === 'taxi' || kind === 'keke' ? 0 : 0, 0)
+    ent.mesh.rotation.set(0, 0, 0)
+    if (kind === 'banner' || kind === 'banner3') this.dressBanner(ent.mesh)
+    if (kind === 'taxi' && this.phase === 'playing' && this.hornCool <= 0) {
+      this.hornCool = 2.4
+      this.audio.horn()
+    }
   }
 
   private spawnCoin(lane: number, z: number, y: number, value: number): void {
@@ -1123,14 +1267,181 @@ export class Game {
     for (const ent of this.ents) this.deactivate(ent)
   }
 
+  private lastRun = { score: 0, duration: 0, distance: 0, cauris: 0, zone: 'Marché Dantokpa' }
+
+  publishNow(): void {
+    void this.publishScore()
+  }
+
+  async scores(): Promise<{ top: import('./leaderboard').ScoreRow[]; personal: import('./leaderboard').ScoreRow | null; mode: 'local' | 'supabase' }> {
+    const name = this.progress.pseudo
+    const [top, personal] = await Promise.all([
+      this.leaderboard.top(50),
+      name ? this.leaderboard.personal(name) : Promise.resolve(null),
+    ])
+    return { top, personal, mode: this.leaderboard.mode }
+  }
+
+  setPseudo(name: string): void {
+    this.progress.pseudo = sanitizePseudo(name)
+    this.persist()
+    this.emit()
+  }
+
+  claim(id: string): boolean {
+    const reward = id === 'daily' ? claimDaily(this.progress) : claimMission(this.progress, id)
+    if (reward <= 0) return false
+    this.wallet += reward
+    this.audio.buy()
+    this.persist()
+    this.emit()
+    return true
+  }
+
+  debugZone(id: string): void {
+    const zone = zoneById(id)
+    let walked = 0
+    while (zoneAt(walked).id !== zone.id && walked < 5000) walked += 20
+    this.distance = walked + 24
+    this.phase = 'playing'
+    this.clearEnts()
+    this.shownZone = zone.id
+    this.danger = false
+    this.dangerT = 0
+    this.line = ''
+    this.spawnCool = 8
+    for (const slot of this.slots) this.dressSlot(slot, zone.id)
+    this.paintZone(zone, 1)
+    this.audio.setZone(zone.id)
+    this.toast = ''
+    this.toastT = 0
+    if (zone.id === 'lagune') {
+      this.spawnObstacle('banner', 0, -14)
+      this.spawnObstacle('barrel', 2, -16)
+    } else if (zone.id === 'porto') {
+      this.spawnObstacle('crate', 0, -13)
+      this.spawnObstacle('taxi', 2, -17)
+    } else if (zone.id === 'plage') {
+      this.spawnObstacle('barrel', 0, -14)
+      this.spawnObstacle('keke', 2, -17)
+    } else {
+      this.spawnObstacle('crate', 0, -13)
+      this.spawnObstacle('taxi', 2, -17)
+    }
+    this.emit()
+  }
+
+  debugSubmit(score: number, duration: number, distance: number, cauris: number): Promise<SubmitResult> {
+    return this.leaderboard.submit({
+      name: this.progress.pseudo || 'Aïcha',
+      score,
+      duration,
+      distance,
+      cauris,
+      zone: zoneById(this.shownZone).name,
+    })
+  }
+
+  private bump(kind: MissionKind, amount: number): void {
+    addProgress(this.progress, kind, amount)
+    this.dirty = true
+  }
+
+  private damp(current: number, target: number, dt: number, rate: number): number {
+    return current + (target - current) * Math.min(1, dt * rate)
+  }
+
+  private zoneAhead() {
+    const look = this.phase === 'playing' ? this.distance + 46 : 0
+    return zoneAt(look)
+  }
+
+  private zoneBias(): { vehicle: number; taxi: number; crate: number } {
+    if (this.shownZone === 'lagune') return { vehicle: 0.08, taxi: 0.25, crate: 0.35 }
+    if (this.shownZone === 'porto') return { vehicle: 0.22, taxi: 0.62, crate: 0.72 }
+    if (this.shownZone === 'plage') return { vehicle: 0.14, taxi: 0.4, crate: 0.28 }
+    return { vehicle: 0.16, taxi: 0.55, crate: 0.62 }
+  }
+
+  private syncZone(): void {
+    const next = this.zoneAhead()
+    if (next.id === this.shownZone) return
+    this.shownZone = next.id
+    this.toast = `${next.name} · ${next.city}`
+    this.toastT = 2.3
+    this.audio.setZone(next.id)
+    this.bump('zones', 1)
+  }
+
+  private dressSlot(slot: { root: THREE.Group; zone: ZoneId; variant: number }, zone: ZoneId): void {
+    slot.root.clear()
+    slot.root.add(this.zoneProtos[zone][slot.variant].clone(true))
+    slot.zone = zone
+  }
+
+  private dressBanner(mesh: THREE.Object3D): void {
+    const zone = this.shownZone
+    mesh.traverse((child) => {
+      if (!child.name.startsWith('cloth-')) return
+      child.visible = child.name === 'cloth-wide' || child.name === `cloth-${zone}`
+    })
+  }
+
+  private paintedZone: ZoneId | '' = ''
+
+  private paintZone(zone: ReturnType<typeof zoneAt>, dt: number): void {
+    const fog = this.scene.fog as THREE.Fog
+    this.fogTarget.setHex(zone.fog)
+    if (dt >= 1) {
+      fog.color.copy(this.fogTarget)
+      fog.near = zone.fogNear
+      fog.far = zone.fogFar
+    } else {
+      fog.color.lerp(this.fogTarget, Math.min(1, dt * 0.8))
+      fog.near += (zone.fogNear - fog.near) * Math.min(1, dt * 0.8)
+      fog.far += (zone.fogFar - fog.far) * Math.min(1, dt * 0.8)
+    }
+    this.renderer.setClearColor(fog.color, 1)
+    if (this.paintedZone !== zone.id) {
+      this.sky.paint(zone.skyTop, zone.skyMid, zone.horizon)
+      this.paintedZone = zone.id
+    }
+  }
+
+  private async publishScore(): Promise<void> {
+    const run = this.lastRun
+    if (!this.progress.pseudo) {
+      this.boardNote = 'Ajoute un pseudo pour entrer au classement.'
+      this.emit()
+      return
+    }
+    const result = await this.leaderboard.submit({
+      name: this.progress.pseudo,
+      score: run.score,
+      cauris: run.cauris,
+      zone: run.zone,
+      duration: run.duration,
+      distance: run.distance,
+    })
+    this.boardNote = result.reason
+    this.emit()
+  }
+
   private persist(): void {
-    writeSave({
+    const data: SaveData = {
       best: this.best,
       cauris: this.wallet,
       owned: this.owned,
       equipped: this.equipped,
       muted: this.muted,
-    })
+      xp: this.progress.xp,
+      missions: this.progress.missions,
+      daily: this.progress.daily,
+      streak: this.progress.streak,
+      lastDailyClaim: this.progress.lastDailyClaim,
+      pseudo: this.progress.pseudo,
+    }
+    writeSave(data)
     this.dirty = false
   }
 

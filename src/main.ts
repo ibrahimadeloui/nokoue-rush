@@ -13,13 +13,16 @@ const ART: Record<BoardId, string> = {
 }
 
 class Ui {
-  private shop = false
+  private overlay: 'none' | 'shop' | 'missions' | 'board' = 'none'
   private shopFrom: 'menu' | 'over' = 'menu'
   private game: Game | null = null
   private built = ''
+  private missionBuilt = ''
 
   private readonly title = must('#title')
   private readonly shopEl = must('#shop')
+  private readonly missionsEl = must('#missions')
+  private readonly boardEl = must('#board')
   private readonly hud = must('#hud')
   private readonly pause = must('#pause')
   private readonly over = must('#over')
@@ -32,36 +35,55 @@ class Ui {
     on('#retry', () => this.start())
     on('#open-shop', () => this.openShop('menu'))
     on('#over-shop', () => this.openShop('over'))
-    on('#shop-back', () => this.closeShop())
+    on('#shop-back', () => this.closeOverlay())
+    on('#open-missions', () => this.openMissions())
+    on('#missions-back', () => this.closeOverlay())
+    on('#open-board', () => void this.openBoard())
+    on('#board-back', () => this.closeOverlay())
     on('#pause-btn', () => game.pause())
     on('#resume', () => game.resume())
     on('#abandon', () => {
-      this.shop = false
+      this.overlay = 'none'
       game.menu()
     })
     on('#home', () => {
-      this.shop = false
+      this.overlay = 'none'
       game.menu()
     })
     on('#mute-title', () => game.toggleMute())
     on('#mute-pause', () => game.toggleMute())
     on('#board-btn', () => game.activate())
+    on('#publish', () => {
+      game.setPseudo(must<HTMLInputElement>('#pseudo').value)
+      game.publishNow()
+    })
+    on('#daily-claim', () => game.claim('daily'))
+    must<HTMLInputElement>('#pseudo').addEventListener('change', () => {
+      game.setPseudo(must<HTMLInputElement>('#pseudo').value)
+    })
+    must<HTMLInputElement>('#board-pseudo').addEventListener('change', () => {
+      game.setPseudo(must<HTMLInputElement>('#board-pseudo').value)
+      void this.openBoard()
+    })
     window.addEventListener('keydown', (event) => {
       if (event.repeat || event.code !== 'Enter') return
+      if (event.target instanceof HTMLInputElement) return
       const phase = document.body.dataset.phase
-      if (this.shop) return
+      if (this.overlay !== 'none') return
       if (phase === 'menu' || phase === 'over') this.start()
     })
   }
 
   sync(snapshot: Snapshot): void {
     document.body.dataset.phase = snapshot.phase
-    const showTitle = snapshot.phase === 'menu' && !this.shop
-    const showOver = snapshot.phase === 'over' && !this.shop
+    const showTitle = snapshot.phase === 'menu' && this.overlay === 'none'
+    const showOver = snapshot.phase === 'over' && this.overlay === 'none'
     const showPause = snapshot.phase === 'paused'
     const showHud = snapshot.phase === 'playing' || snapshot.phase === 'paused'
     this.title.classList.toggle('hidden', !showTitle)
-    this.shopEl.classList.toggle('hidden', !this.shop)
+    this.shopEl.classList.toggle('hidden', this.overlay !== 'shop')
+    this.missionsEl.classList.toggle('hidden', this.overlay !== 'missions')
+    this.boardEl.classList.toggle('hidden', this.overlay !== 'board')
     this.hud.classList.toggle('hidden', !showHud)
     this.pause.classList.toggle('hidden', !showPause)
     this.over.classList.toggle('hidden', !showOver)
@@ -70,10 +92,12 @@ class Ui {
     text('#best', formatCauris(snapshot.best))
     text('#purse', formatCauris(snapshot.wallet))
     text('#equipped', `Planche · ${nameOf(snapshot.equipped)}`)
+    text('#rank', `Rang ${snapshot.rankLevel} · ${snapshot.rankName}`)
     text('#shop-purse', formatCauris(snapshot.wallet))
     text('#run-cauris', formatCauris(snapshot.caurisRun))
     text('#score', formatCauris(snapshot.score))
     text('#mult', `×${snapshot.multiplier}`)
+    text('#zone-label', `${snapshot.zoneName} · ${snapshot.zoneCity}`)
     must('#score').classList.toggle('hot', snapshot.chasingRecord || snapshot.multiplier >= 3)
     text('#hint', snapshot.hint)
     text('#cop-line', snapshot.line || 'La course s’arrête ici.')
@@ -81,8 +105,18 @@ class Ui {
     text('#over-best', formatCauris(snapshot.best))
     text('#over-run', formatCauris(snapshot.caurisRun))
     text('#over-wallet', formatCauris(snapshot.wallet))
+    text('#board-note', snapshot.boardNote)
+    text('#mission-rank', `Rang ${snapshot.rankLevel} · ${snapshot.rankName} · ${formatCauris(snapshot.xp)} xp`)
+    text('#streak', String(snapshot.streak))
+    text('#daily-label', snapshot.dailyLabel)
+    text('#daily-meter', `${formatCauris(snapshot.dailyProgress)} / ${formatCauris(snapshot.dailyTarget)}`)
+    const dailyBtn = must<HTMLButtonElement>('#daily-claim')
+    dailyBtn.disabled = snapshot.dailyClaimed || snapshot.dailyProgress < snapshot.dailyTarget
+    dailyBtn.textContent = snapshot.dailyClaimed ? 'Récupéré' : 'Récupérer'
     must('#new-best').classList.toggle('hidden', !snapshot.newBest)
     must('#danger').classList.toggle('hidden', !(snapshot.danger && snapshot.phase === 'playing'))
+    this.keepPseudo('#pseudo', snapshot.pseudo)
+    this.keepPseudo('#board-pseudo', snapshot.pseudo)
 
     const toast = snapshot.toast
     this.toast.classList.toggle('hidden', toast.length === 0)
@@ -104,26 +138,103 @@ class Ui {
     must('#mute-title').classList.toggle('muted', snapshot.muted)
     must('#mute-title').setAttribute('aria-label', muteLabel)
     text('#mute-pause', muteLabel)
+    text('#board-mode', snapshot.boardMode === 'supabase' ? 'Classement en ligne' : 'Classement sur cet appareil')
 
-    if (this.shop) this.renderShop(snapshot)
+    if (this.overlay === 'shop') this.renderShop(snapshot)
+    if (this.overlay === 'missions') this.renderMissions(snapshot)
   }
 
   private start(): void {
-    this.shop = false
+    this.overlay = 'none'
     ;(document.activeElement as HTMLElement | null)?.blur?.()
     this.game?.play()
   }
 
   private openShop(from: 'menu' | 'over'): void {
     this.shopFrom = from
-    this.shop = true
+    this.overlay = 'shop'
     this.built = ''
-    this.game?.snapshot && this.renderShop(this.game.snapshot())
+    if (this.game) this.renderShop(this.game.snapshot())
   }
 
-  private closeShop(): void {
-    this.shop = false
+  private openMissions(): void {
+    this.overlay = 'missions'
+    this.missionBuilt = ''
     if (this.game) this.sync(this.game.snapshot())
+  }
+
+  private async openBoard(): Promise<void> {
+    this.overlay = 'board'
+    if (!this.game) return
+    this.sync(this.game.snapshot())
+    const data = await this.game.scores()
+    text('#board-mode', data.mode === 'supabase' ? 'Classement en ligne · top 50' : 'Classement sur cet appareil · top 50')
+    text(
+      '#personal',
+      data.personal ? `Ton record : ${formatCauris(data.personal.score)} · ${data.personal.zone}` : 'Pas encore de score pour ce pseudo.',
+    )
+    const list = must('#board-list')
+    list.replaceChildren()
+    data.top.forEach((row, index) => {
+      const item = document.createElement('li')
+      const place = document.createElement('b')
+      place.textContent = String(index + 1)
+      const who = document.createElement('div')
+      who.textContent = row.name
+      const meta = document.createElement('span')
+      meta.textContent = row.zone
+      who.append(document.createElement('br'), meta)
+      const score = document.createElement('strong')
+      score.textContent = formatCauris(row.score)
+      item.append(place, who, score)
+      list.append(item)
+    })
+    if (data.top.length === 0) {
+      const item = document.createElement('li')
+      item.textContent = 'Aucun score pour le moment.'
+      list.append(item)
+    }
+  }
+
+  private closeOverlay(): void {
+    this.overlay = 'none'
+    if (this.game) this.sync(this.game.snapshot())
+  }
+
+  private keepPseudo(selector: string, value: string): void {
+    const input = must<HTMLInputElement>(selector)
+    if (document.activeElement !== input && input.value !== value) input.value = value
+  }
+
+  private renderMissions(snapshot: Snapshot): void {
+    const signature = snapshot.missions.map((mission) => `${mission.id}:${mission.progress}:${mission.claimed}`).join('|')
+    if (signature === this.missionBuilt) return
+    this.missionBuilt = signature
+    const list = must('#mission-list')
+    list.replaceChildren()
+    for (const mission of snapshot.missions) {
+      const card = document.createElement('article')
+      card.className = 'mission'
+      const copy = document.createElement('div')
+      const title = document.createElement('h3')
+      title.textContent = mission.label
+      const meter = document.createElement('p')
+      meter.className = 'meter'
+      meter.textContent = `${formatCauris(mission.progress)} / ${formatCauris(mission.target)} · ${formatCauris(mission.reward)} cauris`
+      copy.append(title, meter)
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.className = 'btn small'
+      const ready = mission.progress >= mission.target && !mission.claimed
+      button.disabled = !ready
+      button.textContent = mission.claimed ? 'Fait' : ready ? 'Récupérer' : 'En cours'
+      button.addEventListener('click', () => {
+        this.missionBuilt = ''
+        this.game?.claim(mission.id)
+      })
+      card.append(copy, button)
+      list.append(card)
+    }
   }
 
   private renderShop(snapshot: Snapshot): void {
@@ -212,8 +323,19 @@ try {
     debugVault: (kind: string, lane: number) => game.debugVault(kind, lane),
     debugClear: () => game.debugClear(),
     debugWallet: (n: number) => game.debugWallet(n),
+    debugZone: (id: string) => game.debugZone(id),
+    debugSubmit: (score: number, duration: number, distance: number, cauris: number) =>
+      game.debugSubmit(score, duration, distance, cauris),
+    setPseudo: (name: string) => game.setPseudo(name),
+    claim: (id: string) => game.claim(id),
     openShop: () => {
       must('#open-shop').click()
+    },
+    openMissions: () => {
+      must('#open-missions').click()
+    },
+    openBoard: () => {
+      must('#open-board').click()
     },
   }
   window.__nokoue = api
@@ -241,7 +363,13 @@ declare global {
       debugVault: (kind: string, lane: number) => void
       debugClear: () => void
       debugWallet: (n: number) => void
+      debugZone: (id: string) => void
+      debugSubmit: (score: number, duration: number, distance: number, cauris: number) => Promise<{ ok: boolean; reason: string }>
+      setPseudo: (name: string) => void
+      claim: (id: string) => boolean
       openShop: () => void
+      openMissions: () => void
+      openBoard: () => void
     }
   }
 }

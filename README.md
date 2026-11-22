@@ -51,7 +51,90 @@ ZQSD et WASD sont tous les deux pris en compte.
 - Le premier faux pas (caisse, tonneau, banderole) rapproche Sènou. Un second faux pas pendant qu’il est proche termine la partie. Il a toujours une réplique.
 - Les cauris dorés remplissent la bourse et font grimper le multiplicateur. Un gros cauri vaut 5.
 - Deux bonus : l’aimant à cauris et le multiplicateur ×2.
-- La bourse, le meilleur score, la planche équipée et le son coupé restent dans `localStorage` (clé `nokoue-rush-v1`).
+- La bourse, le meilleur score, la planche, les missions, le pseudo, la série quotidienne et le son restent dans `localStorage` (clé `nokoue-rush-v1`).
+
+## Quartiers
+
+La course enchaîne quatre zones. Le ciel, le sol et les décors changent, et une pastille annonce le lieu.
+
+1. **Marché Dantokpa** — rues de Cotonou, étals, tissus, palmiers, arche, taxi jaune et vert.
+2. **Lac Nokoué** — ponton de Ganvié, cases sur pilotis, pirogues, eau, banderole Filet.
+3. **Quartier du patrimoine** — Porto-Novo, façades afro-brésiliennes, silhouette de la Grande Mosquée, palais.
+4. **Route de Fidjrosse** — sable, océan, parasols, palmiers.
+
+Puis la boucle reprend. Les taxis sont plus rares sur le lagon, plus présents à Porto-Novo.
+
+## Missions et défi du jour
+
+Trois missions sont actives, par exemple « Ramasse 300 cauris », « Esquive 10 taxis », « Glisse sous 5 banderoles ». Le bouton Récupérer verse les cauris et de l’expérience. Le rang monte : Coursier, Éclaireur, Pilote du lagon, et au-delà.
+
+Le défi du jour change à minuit (heure de l’appareil). Le terminer plusieurs jours de suite augmente la série et le bonus de cauris.
+
+## Classement
+
+À la fin d’une course, entre un pseudo (2 à 16 lettres, chiffres, espaces, points, tirets). Le jeu publie le score s’il est cohérent avec la durée :
+
+- course d’au moins 3 secondes ;
+- le score ne dépasse pas environ 900 points par seconde ;
+- les cauris ne dépassent pas environ 12 par seconde ;
+- la distance reste possible à la vitesse du jeu.
+
+Sans configuration, le top 50 est gardé sur l’appareil. Avec Supabase, le même écran lit le top 50 mondial et ton record pour ce pseudo.
+
+### Activer le classement en ligne
+
+1. Crée un projet gratuit sur [supabase.com](https://supabase.com).
+2. Ouvre **SQL Editor** et exécute :
+
+```sql
+create table public.scores (
+  id uuid primary key default gen_random_uuid(),
+  name text not null check (char_length(name) between 2 and 16),
+  score integer not null check (score >= 0 and score < 2000000),
+  cauris integer not null default 0 check (cauris >= 0),
+  zone text not null default '',
+  duration real not null check (duration > 0.4),
+  distance real not null default 0 check (distance >= 0),
+  created_at timestamptz not null default now(),
+  constraint score_pace check (score < duration * 900 + 80),
+  constraint cauris_pace check (cauris < duration * 12 + 10)
+);
+
+alter table public.scores enable row level security;
+
+create policy "lecture publique"
+  on public.scores for select
+  to anon, authenticated
+  using (true);
+
+create policy "insertion contrôlée"
+  on public.scores for insert
+  to anon, authenticated
+  with check (
+    char_length(name) between 2 and 16
+    and score >= 0
+    and score < duration * 900 + 80
+    and duration > 0.4
+    and cauris >= 0
+    and cauris < duration * 12 + 10
+  );
+```
+
+Il n’y a pas de politique `update` ni `delete` : un visiteur anonyme ne peut ni modifier ni effacer les scores.
+
+3. Dans **Project Settings → API**, copie l’URL du projet et la clé **anon public** (pas la clé `service_role`).
+4. À la racine du jeu, copie `.env.example` vers `.env` :
+
+```bash
+VITE_SUPABASE_URL=https://xxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=ta_cle_anon_publique
+```
+
+5. Relance `npm run dev`, ou `npm run build` avant de publier `dist/`. Les variables `VITE_` sont inscrites dans le build. Sans `.env`, le jeu reste jouable et le classement reste local.
+
+## Musique
+
+Les pistes sont originales et synthétisées dans le navigateur, sans échantillon protégé. Le menu, Dantokpa, le lagon, Porto-Novo et Fidjrosse ont chacun un rythme : cloche façon gankogui, tambour parlant, basse et balafon, avec une variante afrobeat pour le patrimoine et une variante plus claire pour la plage. Le sifflet de Sènou, le klaxon du taxi et le carillon des cauris sont aussi générés. Tout boucle sur la grille rythmique.
 
 ## Planches
 
@@ -75,12 +158,13 @@ npm run dev
 node scripts/playthrough.mjs
 ```
 
-Le script joue une partie en 390×844 : voies, saut, glissade, cauris, faux pas, collision frontale, planche, boutique, et rechargement pour la persistance.
+Le script joue une partie en 390×844 : voies, saut, glissade, cauris, faux pas, collision frontale, planche, boutique, missions, classement local, rejet d’un score incohérent, et les quatre quartiers.
 
 ## Limites
 
-- Le rendu est low-poly et stylisé, pas une scène Pixar cinématographique.
-- La musique et les bruitages sont générés en WebAudio, pas des fichiers enregistrés.
-- Sènou est vu de trois-quarts arrière, sur sa moto verte et or. Son portrait (moustache, casquette, sifflet) est sur l’écran de fin.
+- Le rendu reste low-poly, plus chaud et plus lisible, mais pas une image Pixar filmée.
+- Sènou est vu de trois-quarts arrière. Son portrait (moustache, casquette, sifflet) est sur l’écran de fin.
+- La musique est synthétisée, pas enregistrée avec des instruments.
+- Le classement en ligne dépend de Supabase. Sans clés, il reste sur l’appareil.
+- Les contrôles anti-triche sont des bornes de vraisemblance, pas une signature serveur.
 - Le navigateur décide s’il verrouille le portrait.
-- Pas de compte en ligne ni de classement : tout reste sur l’appareil.

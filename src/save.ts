@@ -1,9 +1,10 @@
 import type { BoardId } from './boards'
+import { normalizeProgress, type ProgressSave } from './missions'
 
 const KEY = 'nokoue-rush-v1'
 const IDS: BoardId[] = ['pirogue', 'wax', 'taxi', 'palais']
 
-export interface SaveData {
+export interface SaveData extends ProgressSave {
   best: number
   cauris: number
   owned: BoardId[]
@@ -11,8 +12,8 @@ export interface SaveData {
   muted: boolean
 }
 
-function isBoard(v: unknown): v is BoardId {
-  return typeof v === 'string' && IDS.includes(v as BoardId)
+function isBoard(value: unknown): value is BoardId {
+  return typeof value === 'string' && IDS.includes(value as BoardId)
 }
 
 export function defaultSave(): SaveData {
@@ -22,6 +23,7 @@ export function defaultSave(): SaveData {
     owned: ['pirogue'],
     equipped: 'pirogue',
     muted: false,
+    ...normalizeProgress(undefined),
   }
 }
 
@@ -34,12 +36,14 @@ export function loadSave(): SaveData {
     const owned = Array.isArray(data.owned) ? data.owned.filter(isBoard) : base.owned
     if (!owned.includes('pirogue')) owned.unshift('pirogue')
     const equipped = isBoard(data.equipped) && owned.includes(data.equipped) ? data.equipped : 'pirogue'
+    const progress = normalizeProgress(data)
     return {
       best: typeof data.best === 'number' && data.best > 0 ? Math.floor(data.best) : 0,
       cauris: typeof data.cauris === 'number' && data.cauris > 0 ? Math.floor(data.cauris) : 0,
       owned,
       equipped,
       muted: Boolean(data.muted),
+      ...progress,
     }
   } catch {
     return base

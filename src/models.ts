@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { BoardId } from './boards'
 import { labelMaterial } from './textures'
+import type { ZoneId } from './zones'
 
 const GEO = {
   box: new THREE.BoxGeometry(1, 1, 1),
@@ -97,6 +98,7 @@ export interface RunnerParts {
   armR: THREE.Group
   boards: Record<BoardId, THREE.Group>
   shield: THREE.Mesh
+  afro: THREE.Object3D
 }
 
 export interface CopParts {
@@ -199,7 +201,7 @@ export function makeRunner(): RunnerParts {
   }
   bob.add(head)
 
-  return { root, bob, shadow, legL, legR, kneeL, kneeR, armL, armR, boards, shield }
+  return { root, bob, shadow, legL, legR, kneeL, kneeR, armL, armR, boards, shield, afro }
 }
 
 function makeLeg(x: number, shoeColor: number): { hip: THREE.Group; knee: THREE.Group } {
@@ -368,7 +370,7 @@ export function makeCop(): CopParts {
 
   const rider = new THREE.Group()
   rider.position.set(0, 1.02, 0.02)
-  const torso = box(0.52, 0.5, 0.36, khaki)
+  const torso = box(0.6, 0.52, 0.4, khaki)
   torso.position.y = 0.32
   const belt = box(0.54, 0.07, 0.38, 0x6b4228)
   belt.position.y = 0.08
@@ -410,73 +412,213 @@ export function makeCop(): CopParts {
   return { root, wheels }
 }
 
-const SIGNS = [
-  ['MARCHÉ', '#0f766e', '#fff6e8'],
-  ['TISSUS', '#ff6b4a', '#fff6e8'],
-  ['AGON', '#3c4d96', '#fff6e8'],
-  ['LAGUNE', '#1d6fa8', '#fff6e8'],
-  ['GANHI', '#008751', '#fff6e8'],
-  ['DANTOKPA', '#c4784a', '#fff6e8'],
-  ['PORTO-NOVO', '#173024', '#f0c430'],
-  ['COTONOU', '#f0c430', '#173024'],
-] as const
+const SIGNS: Record<ZoneId, Array<[string, string, string]>> = {
+  marche: [
+    ['DANTOKPA', '#c4784a', '#fff6e8'],
+    ['TISSUS', '#ff6b4a', '#fff6e8'],
+    ['AGON', '#3c4d96', '#fff6e8'],
+  ],
+  lagune: [
+    ['GANVIÉ', '#0f766e', '#fff6e8'],
+    ['PIROGUES', '#1d6fa8', '#fff6e8'],
+  ],
+  porto: [
+    ['PORTO-NOVO', '#173024', '#f0c430'],
+    ['PALAIS', '#7c2d12', '#fff6e8'],
+  ],
+  plage: [
+    ['FIDJROSSE', '#1d4e89', '#fff6e8'],
+    ['PLAGE', '#0f766e', '#fff6e8'],
+  ],
+}
 
 const AWNINGS = [0xff6b4a, 0x14b8a6, 0xf0c430, 0x3c4d96, 0xe23b32, 0x1f8a4c]
 
-export function makeSegment(index: number): THREE.Group {
+export function makeSegment(zone: ZoneId, variant = 0): THREE.Group {
   const group = new THREE.Group()
   const baker = new Baker()
+  if (zone === 'lagune') buildLagune(baker, variant)
+  else if (zone === 'porto') buildPorto(baker, variant)
+  else if (zone === 'plage') buildPlage(baker, variant)
+  else buildMarche(baker, variant)
+  group.add(baker.mesh(vcMat))
+  const signs = SIGNS[zone]
+  const [text, bg, fg] = signs[variant % signs.length]
+  const [textB, bgB, fgB] = signs[(variant + 1) % signs.length]
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.55, 0.46), labelMaterial(text, bg, fg))
+  sign.position.set(zone === 'plage' ? -3.2 : -3.15, 2.15, -5.2)
+  sign.rotation.y = 0.5
+  const signB = new THREE.Mesh(new THREE.PlaneGeometry(1.55, 0.46), labelMaterial(textB, bgB, fgB))
+  signB.position.set(3.2, 2.15, 5.2)
+  signB.rotation.y = -0.5
+  group.add(sign, signB)
+  return group
+}
+
+function roadMarks(baker: Baker, color = 0xf7edd4): void {
+  for (let k = -4; k <= 4; k++) {
+    if (Math.abs(k) % 2 === 0) continue
+    const z = k * 2
+    baker.put(GEO.box, color, -0.71, 0.18, z, 0.08, 0.03, 0.85)
+    baker.put(GEO.box, color, 0.71, 0.18, z, 0.08, 0.03, 0.85)
+  }
+}
+
+function bunting(baker: Baker, z = 0.4): void {
+  const flags = [0x008751, 0xfcd116, 0xe8112d]
+  for (let k = 0; k < 9; k++) baker.put(GEO.box, flags[k % 3], -2 + k * 0.5, 3.05, z, 0.22, 0.32, 0.04)
+  baker.put(GEO.box, 0x6b4228, 0, 3.24, z, 4.6, 0.04, 0.04)
+}
+
+function arch(baker: Baker, z = -9.2): void {
+  baker.put(GEO.box, 0xc0392b, -2.2, 1.65, z, 0.26, 3.1, 0.28)
+  baker.put(GEO.box, 0xc0392b, 2.2, 1.65, z, 0.26, 3.1, 0.28)
+  baker.put(GEO.box, 0xc0392b, 0, 3.25, z, 4.7, 0.36, 0.34)
+  baker.put(GEO.box, 0xf0c430, 0, 2.98, z, 4.3, 0.08, 0.38)
+}
+
+function buildMarche(baker: Baker, variant: number): void {
   baker.put(GEO.box, 0xe7d3a4, 0.4, -0.08, 0, 16, 0.12, 20)
   baker.put(GEO.box, 0x2a86b8, -6.4, 0.02, 0, 4.4, 0.1, 20)
   baker.put(GEO.box, 0x49b4d6, -6.6, 0.09, 0, 2.2, 0.04, 20)
   baker.put(GEO.box, 0xd7b57a, 0, 0.08, 0, 4.7, 0.16, 20)
   baker.put(GEO.box, 0xc49a62, -2.32, 0.17, 0, 0.08, 0.03, 20)
   baker.put(GEO.box, 0xc49a62, 2.32, 0.17, 0, 0.08, 0.03, 20)
-  for (let k = -4; k <= 4; k++) {
-    if (Math.abs(k) % 2 === 0) continue
-    const z = k * 2
-    baker.put(GEO.box, 0xf7edd4, -0.71, 0.17, z, 0.08, 0.03, 0.85)
-    baker.put(GEO.box, 0xf7edd4, 0.71, 0.17, z, 0.08, 0.03, 0.85)
-  }
-
-  const awning = AWNINGS[index % AWNINGS.length]
-  const awningB = AWNINGS[(index + 3) % AWNINGS.length]
-  stall(baker, -1, -5.2, awning)
-  stall(baker, -1, 4.6, awningB)
-  stall(baker, 1, -4.4, awningB)
-  stall(baker, 1, 5.4, awning)
+  roadMarks(baker)
+  const a = AWNINGS[variant % AWNINGS.length]
+  const b = AWNINGS[(variant + 3) % AWNINGS.length]
+  stall(baker, -1, -5.2, a)
+  stall(baker, -1, 4.8, b)
+  stall(baker, 1, -4.2, b)
+  stall(baker, 1, 5.4, a)
+  fabrics(baker, -3.15, -5.2)
+  fabrics(baker, 3.15, 5.4)
   palm(baker, -4.15, 0.2)
   palm(baker, 4.25, -1.4)
-  if (index % 2 === 0) palm(baker, 4.4, 7)
-  else palm(baker, -4.3, -8)
-
+  if (variant % 2 === 0) {
+    arch(baker)
+    palm(baker, 4.4, 7)
+  } else {
+    bunting(baker)
+    palm(baker, -4.3, -8)
+  }
   baker.put(GEO.box, 0xf0c430, 3.55, 0.38, 6.5, 0.42, 0.55, 0.42)
   baker.put(GEO.box, 0xc4844a, -3.5, 0.32, -7.2, 0.55, 0.5, 0.55)
+}
 
-  if (index % 2 === 0) {
-    baker.put(GEO.box, 0xc0392b, -2.2, 1.65, -9.2, 0.26, 3.1, 0.28)
-    baker.put(GEO.box, 0xc0392b, 2.2, 1.65, -9.2, 0.26, 3.1, 0.28)
-    baker.put(GEO.box, 0xc0392b, 0, 3.25, -9.2, 4.7, 0.36, 0.34)
-    baker.put(GEO.box, 0xf0c430, 0, 2.98, -9.2, 4.3, 0.08, 0.38)
+function buildLagune(baker: Baker, variant: number): void {
+  baker.put(GEO.box, 0x1a6f99, 0, -0.12, 0, 18, 0.16, 20)
+  baker.put(GEO.box, 0x49b4d6, 2.4, -0.02, 0, 6, 0.04, 20)
+  baker.put(GEO.box, 0x8d5a32, 0, 0.1, 0, 4.5, 0.16, 20)
+  for (let k = -4; k <= 4; k++) baker.put(GEO.box, 0x6b4228, 0, 0.19, k * 2.1, 4.4, 0.03, 0.18)
+  roadMarks(baker, 0xf0e2c4)
+  stiltHouse(baker, -3.7, -6, variant % 2 ? 0x14988f : 0xc4784a)
+  stiltHouse(baker, 3.75, -2, 0xf0c430)
+  stiltHouse(baker, -3.6, 5, 0xff6b4a)
+  pirogue(baker, 3.5, 4.5, 0x1d6fa8)
+  pirogue(baker, -3.45, 1.2, 0x8d5a32)
+  if (variant % 2 === 0) {
+    stiltHouse(baker, 3.8, 7.2, 0x3c4d96)
+    bunting(baker, -8)
   } else {
-    const flags = [0x008751, 0xfcd116, 0xe8112d]
-    for (let k = 0; k < 9; k++) {
-      baker.put(GEO.box, flags[k % 3], -2 + k * 0.5, 3.02, 0.4, 0.22, 0.28, 0.04)
-    }
-    baker.put(GEO.box, 0x6b4228, 0, 3.2, 0.4, 4.6, 0.04, 0.04)
+    pirogue(baker, 3.4, -7, 0xc4784a)
+    palm(baker, -4.4, -8)
   }
+  reed(baker, -2.55, 3)
+  reed(baker, 2.55, -4)
+}
 
-  group.add(baker.mesh(vcMat))
-  const [text, bg, fg] = SIGNS[index % SIGNS.length]
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.55, 0.46), labelMaterial(text, bg, fg))
-  sign.position.set(-3.15, 2.05, -5.2)
-  sign.rotation.y = 0.5
-  const [textB, bgB, fgB] = SIGNS[(index + 3) % SIGNS.length]
-  const signB = new THREE.Mesh(new THREE.PlaneGeometry(1.55, 0.46), labelMaterial(textB, bgB, fgB))
-  signB.position.set(3.2, 2.05, 5.4)
-  signB.rotation.y = -0.5
-  group.add(sign, signB)
-  return group
+function buildPorto(baker: Baker, variant: number): void {
+  baker.put(GEO.box, 0xe6d3b0, 0, -0.06, 0, 16, 0.1, 20)
+  baker.put(GEO.box, 0xd7b896, 0, 0.08, 0, 4.6, 0.16, 20)
+  baker.put(GEO.box, 0xb08968, -2.28, 0.17, 0, 0.08, 0.03, 20)
+  baker.put(GEO.box, 0xb08968, 2.28, 0.17, 0, 0.08, 0.03, 20)
+  roadMarks(baker, 0xf7edd4)
+  facade(baker, -3.7, -5.5, 0xf4efe4, 0xc4784a)
+  facade(baker, 3.7, 2.5, 0xf7f1e3, 0x1f8a4c)
+  palm(baker, -4.6, 6)
+  palm(baker, 4.6, -6)
+  if (variant % 2 === 0) {
+    minaret(baker, 4.35, -2)
+    bunting(baker, 8)
+  } else {
+    palace(baker, -3.8, 4)
+    arch(baker, -9)
+  }
+}
+
+function buildPlage(baker: Baker, variant: number): void {
+  baker.put(GEO.box, 0xf0ddb4, 0, -0.08, 0, 16, 0.12, 20)
+  baker.put(GEO.box, 0x1f7eb8, 6.2, -0.02, 0, 6.2, 0.12, 20)
+  baker.put(GEO.box, 0xf7fbff, 4.2, 0.06, 0, 0.35, 0.04, 20)
+  baker.put(GEO.box, 0xf3e2b8, 0, 0.08, 0, 4.5, 0.14, 20)
+  roadMarks(baker, 0xfff6e0)
+  umbrella(baker, -3.3, -5, 0xff6b4a)
+  umbrella(baker, -3.5, 2, 0xf0c430)
+  umbrella(baker, -3.2, 6.5, 0x14988f)
+  palm(baker, -4.5, -1)
+  palm(baker, 3.6, 5)
+  beachHut(baker, 3.4, -4, variant % 2 ? 0x1d6fa8 : 0xc4784a)
+  if (variant % 2 === 0) bunting(baker, -8)
+  else baker.put(GEO.box, 0xf7fbff, 5.1, 0.08, 3, 1.2, 0.03, 3)
+}
+
+function fabrics(baker: Baker, x: number, z: number): void {
+  baker.put(GEO.box, 0xff6b4a, x, 1.45, z + 0.45, 0.08, 0.55, 0.35)
+  baker.put(GEO.box, 0x3c4d96, x, 1.42, z - 0.15, 0.08, 0.48, 0.28)
+  baker.put(GEO.box, 0xf0c430, x, 1.4, z + 0.15, 0.06, 0.4, 0.22)
+}
+
+function stiltHouse(baker: Baker, x: number, z: number, color: number): void {
+  for (const [dx, dz] of [[-0.35, -0.3], [0.35, -0.3], [-0.35, 0.3], [0.35, 0.3]] as const) {
+    baker.put(GEO.cyl, 0x6b4228, x + dx, 0.55, z + dz, 0.05, 1.1, 0.05)
+  }
+  baker.put(GEO.box, color, x, 1.35, z, 1.15, 0.7, 0.95)
+  baker.put(GEO.cone, 0xc4784a, x, 1.95, z, 0.75, 0.45, 0.7)
+  baker.put(GEO.box, 0x173024, x, 1.35, z + 0.48, 0.28, 0.32, 0.04)
+}
+
+function pirogue(baker: Baker, x: number, z: number, color: number): void {
+  baker.put(GEO.sphereLow, color, x, 0.22, z, 0.28, 0.1, 0.85)
+  baker.put(GEO.box, 0xf7fbff, x, 0.3, z, 0.12, 0.03, 0.5)
+}
+
+function reed(baker: Baker, x: number, z: number): void {
+  baker.put(GEO.cyl, 0x2f8f4e, x, 0.45, z, 0.03, 0.7, 0.03)
+  baker.put(GEO.cyl, 0x3cb364, x + 0.12, 0.38, z + 0.1, 0.025, 0.55, 0.025)
+}
+
+function facade(baker: Baker, x: number, z: number, wall: number, shutter: number): void {
+  baker.put(GEO.box, wall, x, 1.55, z, 1.35, 2.5, 1.5)
+  baker.put(GEO.box, 0xc4784a, x, 2.9, z, 1.5, 0.22, 1.65)
+  for (const wz of [-0.35, 0.35]) {
+    baker.put(GEO.box, 0x173024, x, 1.9, z + wz, 0.08, 0.42, 0.28)
+    baker.put(GEO.box, shutter, x - Math.sign(x) * 0.08, 1.9, z + wz, 0.06, 0.46, 0.1)
+  }
+  baker.put(GEO.box, 0x7c2d12, x, 0.7, z + 0.4, 0.1, 0.7, 0.32)
+}
+
+function minaret(baker: Baker, x: number, z: number): void {
+  baker.put(GEO.box, 0xf7f1e3, x, 2.3, z, 0.55, 4.2, 0.55)
+  baker.put(GEO.cone, 0x1f8a4c, x, 4.55, z, 0.38, 0.7, 0.38)
+  baker.put(GEO.box, 0xf0c430, x, 3.6, z, 0.7, 0.08, 0.7)
+}
+
+function palace(baker: Baker, x: number, z: number): void {
+  baker.put(GEO.box, 0xf3e6c8, x, 1.4, z, 1.8, 2.2, 1.4)
+  baker.put(GEO.box, 0xc4784a, x, 2.6, z, 2, 0.18, 1.55)
+  for (const dz of [-0.45, 0, 0.45]) baker.put(GEO.cyl, 0xf7f1e3, x + 0.7, 1.15, z + dz, 0.08, 1.8, 0.08)
+  baker.put(GEO.box, 0x14988f, x, 0.85, z, 0.12, 0.9, 0.4)
+}
+
+function umbrella(baker: Baker, x: number, z: number, color: number): void {
+  baker.put(GEO.cyl, 0xf7f1e3, x, 0.7, z, 0.04, 1.3, 0.04)
+  baker.put(GEO.cone, color, x, 1.45, z, 0.55, 0.28, 0.55)
+}
+
+function beachHut(baker: Baker, x: number, z: number, color: number): void {
+  baker.put(GEO.box, 0xc4a574, x, 0.7, z, 1.2, 0.9, 1)
+  baker.put(GEO.cone, color, x, 1.35, z, 0.8, 0.4, 0.75)
 }
 
 function stall(baker: Baker, side: number, z: number, awning: number): void {
@@ -510,6 +652,9 @@ export function makeCrate(): THREE.Mesh {
   baker.put(GEO.box, 0xe23b32, 0.26, 0.72, 0.52, 0.16, 0.16, 0.04)
   baker.put(GEO.box, 0x3c4d96, 0, 0.92, 0, 0.36, 0.04, 0.36, 0, Math.PI / 4, 0)
   baker.put(GEO.box, 0xf0c430, 0.52, 0.46, 0, 0.04, 0.14, 0.7)
+  baker.put(GEO.box, 0x111111, 0, 0.32, 0.52, 0.22, 0.22, 0.03, 0, 0, Math.PI / 4)
+  baker.put(GEO.box, 0xfff6e8, -0.52, 0.62, 0, 0.03, 0.18, 0.18, 0, 0, Math.PI / 4)
+  baker.put(GEO.box, 0xe23b32, 0.2, 0.93, 0.2, 0.12, 0.03, 0.12)
   return baker.mesh(vcMat)
 }
 
@@ -579,8 +724,57 @@ export function makeBanner(text: string, wide: boolean): THREE.Group {
     labelMaterial(text, '#fff6e8', '#9a3412'),
   )
   cloth.position.set(0, 1.58, 0)
+  cloth.name = wide ? 'cloth-wide' : 'cloth'
   group.add(cloth)
   return group
+}
+
+export function makeZoneBanner(wide: boolean): THREE.Group {
+  const group = new THREE.Group()
+  const baker = new Baker()
+  const half = wide ? 2.15 : 0.62
+  baker.put(GEO.cyl, 0x6b3e23, -half, 1.25, 0, 0.045, 2.5, 0.045)
+  baker.put(GEO.cyl, 0x6b3e23, half, 1.25, 0, 0.045, 2.5, 0.045)
+  group.add(baker.mesh(vcMat))
+  const labels: Array<[string, string, string, string]> = wide
+    ? [['GLISSE', '#fff6e8', '#9a3412', 'wide']]
+    : [
+        ['TISSUS', '#fff6e8', '#9a3412', 'marche'],
+        ['FILET', '#e7f6f4', '#0f766e', 'lagune'],
+        ['PALAIS', '#fff8ef', '#7c2d12', 'porto'],
+        ['PLAGE', '#fff6e8', '#1d4e89', 'plage'],
+      ]
+  for (const [text, bg, fg, zone] of labels) {
+    const cloth = new THREE.Mesh(new THREE.PlaneGeometry(wide ? 4.15 : 1.15, 0.62), labelMaterial(text, bg, fg))
+    cloth.position.set(0, 1.58, 0)
+    cloth.name = `cloth-${zone}`
+    cloth.visible = zone === 'marche' || zone === 'wide'
+    group.add(cloth)
+  }
+  return group
+}
+
+export function makeSky(): { mesh: THREE.Mesh; paint: (top: string, mid: string, horizon: string) => void } {
+  const canvas = document.createElement('canvas')
+  canvas.width = 4
+  canvas.height = 256
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide, depthWrite: false, fog: false })
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(78, 18, 12), material)
+  const paint = (top: string, mid: string, horizon: string) => {
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const gradient = ctx.createLinearGradient(0, 0, 0, 256)
+    gradient.addColorStop(0, top)
+    gradient.addColorStop(0.55, mid)
+    gradient.addColorStop(1, horizon)
+    ctx.fillStyle = gradient
+    ctx.fillRect(0, 0, 4, 256)
+    texture.needsUpdate = true
+  }
+  paint('#6ec4ee', '#ffd7ae', '#f3b56a')
+  return { mesh, paint }
 }
 
 export function makeCoin(): THREE.Mesh {
