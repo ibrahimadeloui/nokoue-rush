@@ -4,7 +4,7 @@ Course sans fin à trois voies dans les rues et les marchés de Cotonou et Porto
 
 Créé par **Ibrahim ADELOUI**, développeur à Porto-Novo, Bénin.
 
-Jeu en ligne : [https://ibrahimadeloui.github.io/nokoue-rush/](https://ibrahimadeloui.github.io/nokoue-rush/)
+Adresse GitHub Pages : [https://ibrahimadeloui.github.io/nokoue-rush/](https://ibrahimadeloui.github.io/nokoue-rush/)
 
 Le même dépôt peut aussi être déployé sur Vercel, servi à la racine `/`.
 
