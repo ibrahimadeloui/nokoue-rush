@@ -559,6 +559,13 @@ button {
 .pause-slot,
 #pause-btn { justify-self: end; }
 
+.hud-actions {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .danger {
   justify-self: center;
   margin: 8px auto 0;

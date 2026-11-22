@@ -80,11 +80,13 @@ export class AudioBus {
   private master: GainNode | null = null
   private music: GainNode | null = null
   private noise: AudioBuffer | null = null
+  private silent: AudioBuffer | null = null
   private muted = false
   private nextAt = 0
   private step = 0
   private cue: MusicCue = 'menu'
   private pending: MusicCue = 'menu'
+  private listening = false
 
   setMuted(muted: boolean): void {
     this.muted = muted
@@ -95,8 +97,31 @@ export class AudioBus {
     this.pending = cue
   }
 
+  attachUnlock(): void {
+    if (this.listening) return
+    this.listening = true
+    const wake = (): void => {
+      this.unlock()
+    }
+    window.addEventListener('pointerdown', wake, { capture: true })
+    window.addEventListener('touchstart', wake, { capture: true, passive: true })
+    window.addEventListener('keydown', wake, { capture: true })
+  }
+
   unlock(): void {
-    this.ensure()
+    const ctx = this.ensure()
+    if (!ctx) return
+    if (ctx.state !== 'running') void ctx.resume()
+    if (this.silent) {
+      try {
+        const src = ctx.createBufferSource()
+        src.buffer = this.silent
+        src.connect(ctx.destination)
+        src.start(0)
+      } catch {
+        /* certains navigateurs refusent un second start hors geste */
+      }
+    }
   }
 
   tick(): void {
@@ -126,28 +151,29 @@ export class AudioBus {
     const o = this.ctx!.createOscillator()
     const g = this.ctx!.createGain()
     o.type = 'triangle'
-    o.frequency.setValueAtTime(280, t)
-    o.frequency.exponentialRampToValueAtTime(760, t + 0.12)
-    g.gain.setValueAtTime(0.11, t)
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16)
+    o.frequency.setValueAtTime(320, t)
+    o.frequency.exponentialRampToValueAtTime(880, t + 0.11)
+    g.gain.setValueAtTime(0.16, t)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18)
     o.connect(g)
     g.connect(this.master!)
     o.start(t)
-    o.stop(t + 0.18)
+    o.stop(t + 0.2)
+    this.tone(523, t + 0.05, 0.08, 'sine', 0.04, this.master!)
   }
 
   slide(): void {
     if (!this.can()) return
-    this.noiseBurst(this.ctx!.currentTime, 700, 0.14, 0.09, 'lowpass')
+    this.noiseBurst(this.ctx!.currentTime, 700, 0.16, 0.13, 'lowpass')
   }
 
   coin(mult: number): void {
     if (!this.can()) return
     const t = this.ctx!.currentTime
     const f = 784 + Math.min(mult, 8) * 40
-    this.tone(f, t, 0.09, 'sine', 0.07, this.master!)
-    this.tone(f * 1.5, t + 0.04, 0.12, 'triangle', 0.045, this.master!)
-    this.tone(f * 2, t + 0.07, 0.08, 'sine', 0.02, this.master!)
+    this.tone(f, t, 0.1, 'sine', 0.11, this.master!)
+    this.tone(f * 1.5, t + 0.04, 0.13, 'triangle', 0.07, this.master!)
+    this.tone(f * 2, t + 0.07, 0.1, 'sine', 0.04, this.master!)
   }
 
   power(): void {
@@ -167,8 +193,9 @@ export class AudioBus {
   hit(): void {
     if (!this.can()) return
     const t = this.ctx!.currentTime
-    this.noiseBurst(t, 220, 0.18, 0.18, 'lowpass')
-    this.tone(110, t, 0.2, 'sine', 0.1, this.master!)
+    this.noiseBurst(t, 180, 0.22, 0.26, 'lowpass')
+    this.tone(98, t, 0.24, 'sine', 0.16, this.master!)
+    this.tone(62, t, 0.18, 'triangle', 0.08, this.master!)
   }
 
   whistle(): void {
@@ -205,7 +232,7 @@ export class AudioBus {
     o.type = 'triangle'
     o.frequency.setValueAtTime(440, t)
     o.frequency.exponentialRampToValueAtTime(120, t + 0.45)
-    g.gain.setValueAtTime(0.08, t)
+    g.gain.setValueAtTime(0.13, t)
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5)
     o.connect(g)
     g.connect(this.master!)
@@ -225,15 +252,16 @@ export class AudioBus {
     if (track.kick[index]) this.kick(time, track.kick[index])
     if (track.clap[index]) this.noiseBurst(time, 1800, 0.07, track.clap[index], 'bandpass', this.music)
     if (track.drum[index]) this.talking(time, track.drum[index])
-    if (track.bass[index]) this.tone(track.bass[index], time, track.step * 0.9, 'triangle', 0.07, this.music)
-    if (track.lead[index]) this.tone(track.lead[index], time, track.step * 0.8, 'sine', 0.035, this.music)
+    if (track.bass[index]) this.tone(track.bass[index], time, track.step * 0.9, 'triangle', 0.1, this.music)
+    if (track.lead[index]) this.tone(track.lead[index], time, track.step * 0.8, 'sine', 0.055, this.music)
     if (track.hat > 0 && index % 2 === 0) this.hat(time, index % 4 === 2, track.hat)
+    if (track.bell[index] && index % 3 === 0) this.tone(988, time + 0.03, 0.05, 'square', 0.018, this.music)
     void PENTA
   }
 
   private bell(time: number, gain: number): void {
-    this.tone(740, time, 0.07, 'square', gain * 0.35, this.music!)
-    this.tone(1480, time, 0.05, 'sine', gain * 0.2, this.music!)
+    this.tone(740, time, 0.08, 'square', gain * 0.45, this.music!)
+    this.tone(1480, time, 0.06, 'sine', gain * 0.28, this.music!)
   }
 
   private talking(time: number, amount: number): void {
@@ -306,14 +334,17 @@ export class AudioBus {
       this.master.gain.value = this.muted ? 0 : 1
       this.master.connect(this.ctx.destination)
       this.music = this.ctx.createGain()
-      this.music.gain.value = 0.85
+      this.music.gain.value = 1
       this.music.connect(this.master)
       const buffer = this.ctx.createBuffer(1, this.ctx.sampleRate, this.ctx.sampleRate)
       const data = buffer.getChannelData(0)
       for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
       this.noise = buffer
+      this.silent = this.ctx.createBuffer(1, 1, this.ctx.sampleRate)
     }
-    if (this.ctx.state === 'suspended') void this.ctx.resume()
+    if (this.ctx.state === 'suspended' || (this.ctx.state as string) === 'interrupted') {
+      void this.ctx.resume()
+    }
     return this.ctx
   }
 

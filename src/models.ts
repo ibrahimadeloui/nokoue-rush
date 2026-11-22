@@ -109,7 +109,7 @@ export interface CopParts {
 export function makeRunner(): RunnerParts {
   const root = new THREE.Group()
   const shadow = new THREE.Mesh(
-    new THREE.CircleGeometry(0.46, 14),
+    new THREE.CircleGeometry(0.4, 14),
     new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28, depthWrite: false }),
   )
   shadow.rotation.x = -Math.PI / 2
@@ -125,8 +125,8 @@ export function makeRunner(): RunnerParts {
     opacity: 0.2,
     depthWrite: false,
   })
-  const shield = new THREE.Mesh(new THREE.SphereGeometry(0.78, 12, 10), shieldMat)
-  shield.position.y = 1.05
+  const shield = new THREE.Mesh(new THREE.SphereGeometry(0.7, 12, 10), shieldMat)
+  shield.position.y = 0.98
   shield.visible = false
   root.add(shield)
 
@@ -134,69 +134,97 @@ export function makeRunner(): RunnerParts {
   root.add(bob)
 
   const skin = 0x6d3b24
-  const { hip: legL, knee: kneeL } = makeLeg(-0.14, 0x128f96)
-  const { hip: legR, knee: kneeR } = makeLeg(0.14, 0xff6b57)
+  const { hip: legL, knee: kneeL } = makeLeg(-0.14, 0xf4efe4)
+  const { hip: legR, knee: kneeR } = makeLeg(0.14, 0xf4efe4)
   bob.add(legL, legR)
 
-  const shorts = box(0.5, 0.3, 0.32, 0xff6b57)
+  const shorts = box(0.5, 0.3, 0.32, 0x6b4228)
   shorts.position.y = 0.96
-  const sideL = box(0.08, 0.28, 0.3, 0x3c4d96)
+  const shortHem = box(0.52, 0.06, 0.33, 0x4e2f1c)
+  shortHem.position.y = 0.84
+  const sideL = box(0.07, 0.26, 0.3, 0x5a3820)
   sideL.position.set(-0.24, 0.96, 0)
-  const sideR = box(0.08, 0.28, 0.3, 0x3c4d96)
+  const sideR = box(0.07, 0.26, 0.3, 0x5a3820)
   sideR.position.set(0.24, 0.96, 0)
-  bob.add(shorts, sideL, sideR)
+  bob.add(shorts, shortHem, sideL, sideR)
 
-  const mid = box(0.36, 0.14, 0.22, skin, false)
-  mid.position.y = 1.16
+  const mid = box(0.34, 0.12, 0.22, skin, false)
+  mid.position.y = 1.14
   bob.add(mid)
 
-  const top = box(0.5, 0.36, 0.3, 0x14988f)
-  top.position.y = 1.4
+  const top = box(0.5, 0.34, 0.3, 0x14988f)
+  top.position.y = 1.36
   const hem = box(0.52, 0.07, 0.32, 0xf0c430)
-  hem.position.y = 1.24
-  const waxA = box(0.12, 0.12, 0.04, 0xf0c430)
-  waxA.position.set(-0.1, 1.42, 0.16)
-  waxA.rotation.z = Math.PI / 4
-  const waxB = box(0.1, 0.1, 0.04, 0xff6b57)
-  waxB.position.set(0.1, 1.4, 0.16)
-  waxB.rotation.z = 0.4
-  bob.add(top, hem, waxA, waxB)
+  hem.position.y = 1.21
+  bob.add(top, hem)
+  const motifs: Array<[number, number, number, number]> = [
+    [-0.12, 1.4, 0.16, 0xf0c430],
+    [0.12, 1.38, 0.16, 0xff6b57],
+    [0, 1.48, 0.16, 0x3c4d96],
+    [-0.12, 1.4, -0.16, 0xf0c430],
+    [0.12, 1.38, -0.16, 0xff6b57],
+  ]
+  for (const [x, y, z, color] of motifs) {
+    const patch = box(0.11, 0.11, 0.035, color)
+    patch.position.set(x, y, z)
+    patch.rotation.z = Math.PI / 4
+    bob.add(patch)
+  }
 
-  const bag = box(0.24, 0.28, 0.1, 0x8d5a34)
-  bag.position.set(0.18, 1.08, 0.18)
-  const flap = box(0.22, 0.08, 0.05, 0xc4784a)
-  flap.position.set(0.18, 1.2, 0.2)
+  const bag = box(0.3, 0.34, 0.14, 0x6b3e23)
+  bag.position.set(0.02, 1.22, 0.24)
+  const flap = box(0.28, 0.1, 0.06, 0x8d5a34)
+  flap.position.set(0.02, 1.38, 0.28)
   const buckle = box(0.08, 0.06, 0.04, 0xf0c430)
-  buckle.position.set(0.18, 1.18, 0.23)
-  const strap = box(0.05, 0.48, 0.05, 0x6b4228)
-  strap.position.set(0.2, 1.38, 0.12)
-  strap.rotation.z = 0.45
-  strap.rotation.x = 0.35
-  bob.add(bag, flap, buckle, strap)
+  buckle.position.set(0.02, 1.34, 0.32)
+  const strap = box(0.05, 0.62, 0.05, 0x4e2f1c)
+  strap.position.set(-0.16, 1.4, 0.1)
+  strap.rotation.z = -0.55
+  strap.rotation.x = 0.45
+  const strapB = box(0.05, 0.36, 0.05, 0x4e2f1c)
+  strapB.position.set(0.16, 1.42, 0.16)
+  strapB.rotation.z = 0.35
+  strapB.rotation.x = 0.3
+  bob.add(bag, flap, buckle, strap, strapB)
 
   const armL = makeArm(-0.34)
   const armR = makeArm(0.34)
   bob.add(armL, armR)
 
   const head = new THREE.Group()
-  head.position.y = 1.74
-  const skull = sphere(0.2, 0.22, 0.2, skin, false)
-  const afro = sphere(0.33, 0.3, 0.32, 0x1a120e, false)
-  afro.position.y = 0.12
-  const puff = sphere(0.24, 0.2, 0.22, 0x140e0c, false)
-  puff.position.set(0, 0.06, 0.12)
-  head.add(skull, afro, puff)
+  head.position.y = 1.64
+  const skull = sphere(0.11, 0.115, 0.11, skin, false)
+  const afro = new THREE.Group()
+  const curls: Array<[number, number, number, number]> = [
+    [0, 0.08, 0.02, 0.09],
+    [0.07, 0.06, 0.05, 0.075],
+    [-0.07, 0.06, 0.05, 0.075],
+    [0.07, 0.05, -0.04, 0.07],
+    [-0.07, 0.05, -0.04, 0.07],
+    [0, 0.04, 0.1, 0.08],
+    [0.06, 0.02, 0.09, 0.065],
+    [-0.06, 0.02, 0.09, 0.065],
+    [0, 0.07, -0.05, 0.07],
+    [0.05, 0.08, 0, 0.06],
+    [-0.05, 0.08, 0, 0.06],
+  ]
+  for (const [x, y, z, r] of curls) {
+    const curl = sphere(r, r * 0.85, r, 0x1a120e, false)
+    curl.position.set(x, y, z)
+    afro.add(curl)
+  }
+  head.add(skull, afro)
 
   for (const side of [-1, 1]) {
     const hoop = new THREE.Mesh(GEO.torus, lambert(0xf0c430, true))
-    hoop.scale.setScalar(0.075)
-    hoop.position.set(side * 0.2, -0.02, 0)
+    hoop.scale.setScalar(0.045)
+    hoop.position.set(side * 0.115, -0.02, 0.01)
     hoop.rotation.y = Math.PI / 2
     head.add(hoop)
-    const eye = sphere(0.045, 0.05, 0.035, 0xfffaf3, false)
-    eye.position.set(side * 0.07, 0.03, -0.16)
-    const pupil = sphere(0.022, 0.026, 0.02, 0x1a120e, false)
-    pupil.position.set(side * 0.07, 0.02, -0.19)
+    const eye = sphere(0.03, 0.032, 0.024, 0xfffaf3, false)
+    eye.position.set(side * 0.04, 0.015, -0.1)
+    const pupil = sphere(0.014, 0.016, 0.012, 0x1a120e, false)
+    pupil.position.set(side * 0.04, 0.01, -0.12)
     head.add(eye, pupil)
   }
   bob.add(head)
@@ -217,11 +245,13 @@ function makeLeg(x: number, shoeColor: number): { hip: THREE.Group; knee: THREE.
   shin.position.y = -0.15
   const shoe = box(0.16, 0.1, 0.28, shoeColor)
   shoe.position.set(0, -0.32, 0.04)
-  const sole = box(0.17, 0.04, 0.3, 0xf4efe4)
+  const sole = box(0.17, 0.04, 0.3, 0x3a2a1c)
   sole.position.set(0, -0.38, 0.04)
+  const stripe = box(0.17, 0.04, 0.08, 0x14988f)
+  stripe.position.set(0, -0.3, 0.12)
   const lace = box(0.06, 0.03, 0.1, 0xf0c430)
   lace.position.set(0, -0.26, -0.02)
-  knee.add(shin, shoe, sole, lace)
+  knee.add(shin, shoe, sole, stripe, lace)
   return { hip, knee }
 }
 
@@ -466,15 +496,15 @@ function roadMarks(baker: Baker, color = 0xf7edd4): void {
 
 function bunting(baker: Baker, z = 0.4): void {
   const flags = [0x008751, 0xfcd116, 0xe8112d]
-  for (let k = 0; k < 9; k++) baker.put(GEO.box, flags[k % 3], -2 + k * 0.5, 3.05, z, 0.22, 0.32, 0.04)
-  baker.put(GEO.box, 0x6b4228, 0, 3.24, z, 4.6, 0.04, 0.04)
+  for (let k = 0; k < 9; k++) baker.put(GEO.box, flags[k % 3], -2 + k * 0.5, 4.45, z, 0.22, 0.36, 0.04)
+  baker.put(GEO.box, 0x6b4228, 0, 4.66, z, 4.6, 0.05, 0.04)
 }
 
 function arch(baker: Baker, z = -9.2): void {
-  baker.put(GEO.box, 0xc0392b, -2.2, 1.65, z, 0.26, 3.1, 0.28)
-  baker.put(GEO.box, 0xc0392b, 2.2, 1.65, z, 0.26, 3.1, 0.28)
-  baker.put(GEO.box, 0xc0392b, 0, 3.25, z, 4.7, 0.36, 0.34)
-  baker.put(GEO.box, 0xf0c430, 0, 2.98, z, 4.3, 0.08, 0.38)
+  baker.put(GEO.box, 0xc0392b, -2.2, 2.15, z, 0.26, 4.1, 0.28)
+  baker.put(GEO.box, 0xc0392b, 2.2, 2.15, z, 0.26, 4.1, 0.28)
+  baker.put(GEO.box, 0xc0392b, 0, 4.25, z, 4.7, 0.36, 0.34)
+  baker.put(GEO.box, 0xf0c430, 0, 3.98, z, 4.3, 0.08, 0.38)
 }
 
 function buildMarche(baker: Baker, variant: number): void {
@@ -644,51 +674,84 @@ function palm(baker: Baker, x: number, z: number): void {
   baker.put(GEO.sphereLow, 0x6b3e23, x + 0.05, 2.02, z, 0.07, 0.08, 0.07)
 }
 
-export function makeCrate(): THREE.Mesh {
-  const baker = new Baker()
-  baker.put(GEO.box, 0xc4844a, 0, 0.46, 0, 1.02, 0.9, 1.02)
-  baker.put(GEO.box, 0x14988f, 0, 0.55, 0.52, 0.32, 0.32, 0.04, 0, 0, Math.PI / 4)
-  baker.put(GEO.box, 0xf0c430, -0.28, 0.28, 0.52, 0.16, 0.16, 0.04)
-  baker.put(GEO.box, 0xe23b32, 0.26, 0.72, 0.52, 0.16, 0.16, 0.04)
-  baker.put(GEO.box, 0x3c4d96, 0, 0.92, 0, 0.36, 0.04, 0.36, 0, Math.PI / 4, 0)
-  baker.put(GEO.box, 0xf0c430, 0.52, 0.46, 0, 0.04, 0.14, 0.7)
-  baker.put(GEO.box, 0x111111, 0, 0.32, 0.52, 0.22, 0.22, 0.03, 0, 0, Math.PI / 4)
-  baker.put(GEO.box, 0xfff6e8, -0.52, 0.62, 0, 0.03, 0.18, 0.18, 0, 0, Math.PI / 4)
-  baker.put(GEO.box, 0xe23b32, 0.2, 0.93, 0.2, 0.12, 0.03, 0.12)
-  return baker.mesh(vcMat)
+function obstacleShadow(radius: number): THREE.Mesh {
+  const mesh = new THREE.Mesh(
+    new THREE.CircleGeometry(radius, 16),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.34, depthWrite: false }),
+  )
+  mesh.rotation.x = -Math.PI / 2
+  mesh.position.y = 0.175
+  mesh.renderOrder = 1
+  return mesh
 }
 
-export function makeBarrel(): THREE.Mesh {
+export function makeCrate(): THREE.Group {
+  const group = new THREE.Group()
   const baker = new Baker()
-  baker.put(GEO.cyl, 0xf0c430, 0, 0.4, 0, 0.34, 0.76, 0.34)
-  baker.put(GEO.cyl, 0xc0392b, 0, 0.55, 0, 0.37, 0.1, 0.37)
-  baker.put(GEO.cyl, 0xf7edd4, 0, 0.8, 0, 0.28, 0.06, 0.28)
-  return baker.mesh(vcMat)
+  baker.put(GEO.box, 0x7a3b14, 0, 0.635, 0, 1.16, 0.95, 1.16)
+  baker.put(GEO.box, 0xd9782c, 0, 0.635, 0, 1.04, 0.83, 1.04)
+  baker.put(GEO.box, 0x3a1c0c, 0, 0.635, 0.58, 1.18, 0.08, 0.04)
+  baker.put(GEO.box, 0x3a1c0c, 0, 0.635, -0.58, 1.18, 0.08, 0.04)
+  baker.put(GEO.box, 0x14988f, 0, 0.72, 0.59, 0.36, 0.36, 0.05, 0, 0, Math.PI / 4)
+  baker.put(GEO.box, 0xf0c430, -0.3, 0.42, 0.59, 0.2, 0.2, 0.05)
+  baker.put(GEO.box, 0xe23b32, 0.3, 0.86, 0.59, 0.2, 0.2, 0.05)
+  baker.put(GEO.box, 0xfff6e8, 0, 0.58, 0.59, 0.16, 0.16, 0.04, 0, 0, Math.PI / 4)
+  baker.put(GEO.box, 0x14988f, 0, 0.72, -0.59, 0.36, 0.36, 0.05, 0, 0, Math.PI / 4)
+  baker.put(GEO.box, 0xf0c430, 0.3, 0.42, -0.59, 0.2, 0.2, 0.05)
+  baker.put(GEO.box, 0xe23b32, -0.3, 0.86, -0.59, 0.2, 0.2, 0.05)
+  baker.put(GEO.box, 0xf0c430, 0.59, 0.635, 0, 0.05, 0.18, 0.8)
+  baker.put(GEO.box, 0x3c4d96, 0, 1.12, 0, 0.4, 0.05, 0.4, 0, Math.PI / 4, 0)
+  baker.put(GEO.box, 0xfff6e8, 0, 1.16, 0, 0.16, 0.04, 0.16)
+  const body = baker.mesh(vcMat)
+  body.renderOrder = 2
+  group.add(obstacleShadow(0.72), body)
+  return group
+}
+
+export function makeBarrel(): THREE.Group {
+  const group = new THREE.Group()
+  const baker = new Baker()
+  baker.put(GEO.cyl, 0xffd24a, 0, 0.605, 0, 0.42, 0.88, 0.42)
+  baker.put(GEO.cyl, 0xc0392b, 0, 0.38, 0, 0.45, 0.1, 0.45)
+  baker.put(GEO.cyl, 0xc0392b, 0, 0.82, 0, 0.45, 0.1, 0.45)
+  baker.put(GEO.cyl, 0x3a1c0c, 0, 0.58, 0, 0.445, 0.05, 0.445)
+  baker.put(GEO.cyl, 0xfff6e8, 0, 1.05, 0, 0.32, 0.08, 0.32)
+  baker.put(GEO.box, 0x173024, 0, 0.7, 0.43, 0.12, 0.2, 0.04)
+  const body = baker.mesh(vcMat)
+  body.renderOrder = 2
+  group.add(obstacleShadow(0.5), body)
+  return group
 }
 
 export function makeTaxi(): THREE.Group {
   const group = new THREE.Group()
   const baker = new Baker()
-  baker.put(GEO.box, 0xf0c430, 0, 0.62, 0, 1.12, 0.52, 1.85)
-  baker.put(GEO.box, 0x1f8a4c, 0, 0.4, 0, 1.16, 0.16, 1.88)
-  baker.put(GEO.box, 0x178a45, 0, 1.05, -0.08, 1.0, 0.4, 1.0)
-  baker.put(GEO.box, 0x9ad7ef, 0, 1.08, 0.48, 0.7, 0.26, 0.05)
-  baker.put(GEO.sphereLow, 0xe8112d, -0.38, 0.55, 0.94, 0.09, 0.07, 0.05)
-  baker.put(GEO.sphereLow, 0xe8112d, 0.38, 0.55, 0.94, 0.09, 0.07, 0.05)
+  baker.put(GEO.box, 0xffd24a, 0, 0.74, 0, 1.2, 0.52, 1.95)
+  baker.put(GEO.box, 0x146c38, 0, 0.5, 0, 1.24, 0.16, 1.98)
+  baker.put(GEO.box, 0x178a45, 0, 1.17, -0.08, 1.06, 0.42, 1.05)
+  baker.put(GEO.box, 0x9ad7ef, 0, 1.2, 0.52, 0.76, 0.28, 0.05)
+  baker.put(GEO.box, 0x173024, 0, 0.74, 0, 1.22, 0.06, 2.0)
+  baker.put(GEO.sphereLow, 0xe8112d, -0.4, 0.67, 1.0, 0.1, 0.08, 0.06)
+  baker.put(GEO.sphereLow, 0xe8112d, 0.4, 0.67, 1.0, 0.1, 0.08, 0.06)
+  baker.put(GEO.sphereLow, 0xfff6e8, -0.4, 0.67, -1.0, 0.08, 0.07, 0.05)
+  baker.put(GEO.sphereLow, 0xfff6e8, 0.4, 0.67, -1.0, 0.08, 0.07, 0.05)
   for (const [x, z] of [
-    [-0.52, 0.55],
-    [0.52, 0.55],
-    [-0.52, -0.55],
-    [0.52, -0.55],
+    [-0.54, 0.58],
+    [0.54, 0.58],
+    [-0.54, -0.58],
+    [0.54, -0.58],
   ] as const) {
-    baker.put(GEO.cyl, 0x222222, x, 0.26, z, 0.16, 0.1, 0.16, 0, 0, Math.PI / 2)
+    baker.put(GEO.cyl, 0x1a1a1a, x, 0.34, z, 0.18, 0.12, 0.18, 0, 0, Math.PI / 2)
   }
   for (let i = 0; i < 6; i++) {
-    baker.put(GEO.box, i % 2 ? 0x111111 : 0xf4f4f4, 0.58, 0.72, -0.7 + i * 0.28, 0.03, 0.1, 0.14)
+    baker.put(GEO.box, i % 2 ? 0x111111 : 0xf4f4f4, 0.62, 0.84, -0.72 + i * 0.28, 0.04, 0.12, 0.16)
   }
-  group.add(baker.mesh(vcMat))
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.24), labelMaterial('TAXI', '#f0c430', '#173024'))
-  sign.position.set(0, 1.42, 0.1)
+  const body = baker.mesh(vcMat)
+  body.renderOrder = 2
+  group.add(obstacleShadow(1.05), body)
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.58, 0.26), labelMaterial('TAXI', '#173024', '#f0c430'))
+  sign.position.set(0, 1.54, 0.16)
+  sign.renderOrder = 3
   group.add(sign)
   return group
 }
@@ -696,18 +759,21 @@ export function makeTaxi(): THREE.Group {
 export function makeKeke(): THREE.Group {
   const group = new THREE.Group()
   const baker = new Baker()
-  baker.put(GEO.box, 0x1f8a4c, 0, 0.78, 0.05, 0.95, 0.62, 1.25)
-  baker.put(GEO.box, 0xf0c430, 0, 0.52, 0, 1.02, 0.1, 1.35)
-  baker.put(GEO.box, 0x14988f, 0, 1.16, 0.05, 1.0, 0.08, 1.1)
-  baker.put(GEO.box, 0xf0c430, 0, 1.5, 0.05, 0.08, 0.62, 0.08)
-  baker.put(GEO.box, 0x1f8a4c, 0, 1.78, 0.05, 0.95, 0.08, 0.85)
-  baker.put(GEO.box, 0x9ad7ef, 0, 0.9, 0.68, 0.62, 0.28, 0.04)
-  baker.put(GEO.cyl, 0x222222, 0, 0.26, -0.72, 0.2, 0.1, 0.2, 0, 0, Math.PI / 2)
-  baker.put(GEO.cyl, 0x222222, -0.4, 0.26, 0.42, 0.18, 0.1, 0.18, 0, 0, Math.PI / 2)
-  baker.put(GEO.cyl, 0x222222, 0.4, 0.26, 0.42, 0.18, 0.1, 0.18, 0, 0, Math.PI / 2)
-  group.add(baker.mesh(vcMat))
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.78, 0.2), labelMaterial('INSPECTEUR', '#f0c430', '#173024'))
-  sign.position.set(0, 1.05, 0.66)
+  baker.put(GEO.box, 0x146c38, 0, 0.9, 0.05, 1.05, 0.66, 1.35)
+  baker.put(GEO.box, 0xffd24a, 0, 0.62, 0, 1.12, 0.12, 1.45)
+  baker.put(GEO.box, 0x14988f, 0, 1.28, 0.05, 1.08, 0.1, 1.2)
+  baker.put(GEO.box, 0xffd24a, 0, 1.62, 0.05, 0.1, 0.66, 0.1)
+  baker.put(GEO.box, 0x146c38, 0, 1.92, 0.05, 1.05, 0.1, 0.92)
+  baker.put(GEO.box, 0x9ad7ef, 0, 1.02, 0.74, 0.7, 0.32, 0.05)
+  baker.put(GEO.cyl, 0x1a1a1a, 0, 0.34, -0.76, 0.22, 0.12, 0.22, 0, 0, Math.PI / 2)
+  baker.put(GEO.cyl, 0x1a1a1a, -0.44, 0.34, 0.46, 0.2, 0.12, 0.2, 0, 0, Math.PI / 2)
+  baker.put(GEO.cyl, 0x1a1a1a, 0.44, 0.34, 0.46, 0.2, 0.12, 0.2, 0, 0, Math.PI / 2)
+  const body = baker.mesh(vcMat)
+  body.renderOrder = 2
+  group.add(obstacleShadow(0.82), body)
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.86, 0.24), labelMaterial('INSPECTEUR', '#173024', '#f0c430'))
+  sign.position.set(0, 1.18, 0.74)
+  sign.renderOrder = 3
   group.add(sign)
   return group
 }
@@ -720,10 +786,11 @@ export function makeBanner(text: string, wide: boolean): THREE.Group {
   baker.put(GEO.cyl, 0x6b3e23, half, 1.25, 0, 0.045, 2.5, 0.045)
   group.add(baker.mesh(vcMat))
   const cloth = new THREE.Mesh(
-    new THREE.PlaneGeometry(wide ? 4.15 : 1.15, 0.62),
-    labelMaterial(text, '#fff6e8', '#9a3412'),
+    new THREE.PlaneGeometry(wide ? 4.3 : 1.28, 0.72),
+    labelMaterial(text, '#9a3412', '#fff6e8'),
   )
-  cloth.position.set(0, 1.58, 0)
+  cloth.position.set(0, 1.62, 0)
+  cloth.renderOrder = 3
   cloth.name = wide ? 'cloth-wide' : 'cloth'
   group.add(cloth)
   return group

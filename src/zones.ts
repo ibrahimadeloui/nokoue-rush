@@ -23,8 +23,8 @@ export const ZONES: ZoneDef[] = [
     skyMid: '#ffd7ae',
     horizon: '#f3b56a',
     fog: 0xf6c898,
-    fogNear: 18,
-    fogFar: 56,
+    fogNear: 22,
+    fogFar: 68,
   },
   {
     id: 'lagune',
@@ -35,8 +35,8 @@ export const ZONES: ZoneDef[] = [
     skyMid: '#b7e4d8',
     horizon: '#8ec8c2',
     fog: 0x9fd4d4,
-    fogNear: 16,
-    fogFar: 52,
+    fogNear: 20,
+    fogFar: 64,
   },
   {
     id: 'porto',
@@ -47,8 +47,8 @@ export const ZONES: ZoneDef[] = [
     skyMid: '#f6d7b0',
     horizon: '#e7b48a',
     fog: 0xf0c8a4,
-    fogNear: 17,
-    fogFar: 54,
+    fogNear: 21,
+    fogFar: 66,
   },
   {
     id: 'plage',
@@ -59,8 +59,8 @@ export const ZONES: ZoneDef[] = [
     skyMid: '#ffe3b8',
     horizon: '#f6d7a2',
     fog: 0xf3d7ae,
-    fogNear: 18,
-    fogFar: 58,
+    fogNear: 22,
+    fogFar: 70,
   },
 ]
 

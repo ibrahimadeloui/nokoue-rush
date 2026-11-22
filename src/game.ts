@@ -86,6 +86,7 @@ const PLAYER_H = 1.48
 const SLIDE_H = 0.56
 const SEG = 20
 const SEG_COUNT = 5
+const SPAWN_Z = -34
 
 const WARN = [
   'Je te vois, Aïcha !',
@@ -123,12 +124,12 @@ interface Spec {
 }
 
 const SPECS: Record<Kind, Spec> = {
-  crate: { y0: 0, y1: 0.92, hw: 0.5, hd: 0.5 },
-  barrel: { y0: 0, y1: 0.82, hw: 0.36, hd: 0.36 },
-  taxi: { y0: 0, y1: 1.72, hw: 0.58, hd: 0.96 },
-  keke: { y0: 0, y1: 1.88, hw: 0.52, hd: 0.72 },
-  banner: { y0: 1.22, y1: 2.05, hw: 0.58, hd: 0.26 },
-  banner3: { y0: 1.22, y1: 2.05, hw: 2.25, hd: 0.26 },
+  crate: { y0: 0.16, y1: 1.11, hw: 0.58, hd: 0.58 },
+  barrel: { y0: 0.16, y1: 1.05, hw: 0.42, hd: 0.42 },
+  taxi: { y0: 0.16, y1: 1.84, hw: 0.62, hd: 1.0 },
+  keke: { y0: 0.16, y1: 2.0, hw: 0.56, hd: 0.76 },
+  banner: { y0: 1.22, y1: 2.1, hw: 0.64, hd: 0.26 },
+  banner3: { y0: 1.22, y1: 2.1, hw: 2.25, hd: 0.26 },
   coin: { y0: 0, y1: 0, hw: 0.3, hd: 0.3 },
   magnet: { y0: 0, y1: 0, hw: 0.4, hd: 0.4 },
   mult: { y0: 0, y1: 0, hw: 0.4, hd: 0.4 },
@@ -254,6 +255,7 @@ export class Game {
     this.perk = boardById(this.equipped).perk
     this.audio.setMuted(this.muted)
     this.audio.setZone('menu')
+    this.audio.attachUnlock()
     this.leaderboard = createLeaderboard()
 
     this.renderer = new THREE.WebGLRenderer({
@@ -382,7 +384,7 @@ export class Game {
     this.grounded = true
     this.sliding = false
     this.slideT = 0
-    this.spawnCool = 2.3
+    this.spawnCool = 1.35
     this.line = ''
     this.toast = ''
     this.toastT = 0
@@ -397,6 +399,8 @@ export class Game {
     this.paintZone(zoneAt(0), 1)
     this.audio.setZone('marche')
     for (let k = 0; k < 6; k++) this.spawnCoin(1, -12 - k * 1.7, 0.95, 1)
+    this.spawnObstacle('crate', 0, -18)
+    this.spawnObstacle('barrel', 2, -24)
     this.audio.click()
     this.emit()
   }
@@ -777,7 +781,7 @@ export class Game {
       return
     }
     if (roll < 0.24 && this.distance > 40) {
-      for (const lane of [0, 1, 2]) this.spawnCoin(lane, -44, 1, 1)
+      for (const lane of [0, 1, 2]) this.spawnCoin(lane, SPAWN_Z, 1, 1)
       return
     }
     if (roll < 0.42) {
@@ -785,7 +789,7 @@ export class Game {
       return
     }
     if (roll < 0.5 && this.distance > 260) {
-      this.spawnObstacle('banner3', 1, -44)
+      this.spawnObstacle('banner3', 1, SPAWN_Z)
       return
     }
     this.patternBlocks(diff)
@@ -794,7 +798,7 @@ export class Game {
   private patternCoins(): void {
     const lane = (Math.random() * 3) | 0
     if (this.distance > 70 && Math.random() < 0.32) {
-      const base = -44
+      const base = SPAWN_Z
       this.spawnObstacle(Math.random() < 0.5 ? 'barrel' : 'crate', lane, base - 3.1)
       const heights = [1.05, 1.4, 1.72, 1.4, 1.05]
       for (let k = 0; k < 5; k++) this.spawnCoin(lane, base - k * 1.55, heights[k], 1)
@@ -802,23 +806,23 @@ export class Game {
     }
     for (let k = 0; k < 8; k++) {
       const value = k === 7 && Math.random() < 0.45 ? 5 : 1
-      this.spawnCoin(lane, -42 - k * 1.65, 0.95, value)
+      this.spawnCoin(lane, SPAWN_Z + 2 - k * 1.65, 0.95, value)
     }
   }
 
   private patternPower(): void {
     const lane = (Math.random() * 3) | 0
-    this.spawnPower(Math.random() < 0.5 ? 'magnet' : 'mult', lane, -44)
-    if (Math.random() < 0.7) this.spawnObstacle('barrel', (lane + 1) % 3, -44)
+    this.spawnPower(Math.random() < 0.5 ? 'magnet' : 'mult', lane, SPAWN_Z)
+    if (Math.random() < 0.7) this.spawnObstacle('barrel', (lane + 1) % 3, SPAWN_Z)
   }
 
   private patternBanner(): void {
     const lane = (Math.random() * 3) | 0
-    this.spawnObstacle('banner', lane, -44)
+    this.spawnObstacle('banner', lane, SPAWN_Z)
     if (Math.random() < 0.7) {
       const options = [0, 1, 2].filter((item) => item !== lane)
       const other = options[(Math.random() * options.length) | 0]
-      this.spawnObstacle(Math.random() < 0.55 ? 'crate' : 'barrel', other, -44)
+      this.spawnObstacle(Math.random() < 0.55 ? 'crate' : 'barrel', other, SPAWN_Z)
     }
   }
 
@@ -836,11 +840,11 @@ export class Game {
         : Math.random() < bias.crate
           ? 'crate'
           : 'barrel'
-      this.spawnObstacle(kind, lanes[i], -44)
+      this.spawnObstacle(kind, lanes[i], SPAWN_Z)
     }
     const free = lanes[count === 2 ? 2 : 1]
     if (Math.random() < 0.8) {
-      for (let k = 0; k < 4; k++) this.spawnCoin(free, -42 - k * 1.7, 0.95, 1)
+      for (let k = 0; k < 4; k++) this.spawnCoin(free, SPAWN_Z + 2 - k * 1.7, 0.95, 1)
     }
   }
 
@@ -865,7 +869,7 @@ export class Game {
         const bob = Math.sin(this.time * 4 + ent.spin) * 0.08
         ent.mesh.position.set(ent.x, ent.y + bob, ent.z)
       } else {
-        if (ent.kind === 'barrel') ent.mesh.rotation.y += dt * 1.8
+        if (ent.kind === 'barrel') (ent.mesh.children[1] ?? ent.mesh).rotation.y += dt * 1.8
         ent.mesh.position.set(ent.x, 0, ent.z)
       }
       if (!ent.marked && ent.z > -0.15 && (ent.kind === 'banner' || ent.kind === 'banner3')) {
@@ -1076,7 +1080,7 @@ export class Game {
     this.runner.armL.rotation.x = this.pose.aL
     this.runner.armR.rotation.x = this.pose.aR
     this.runner.afro.rotation.x = Math.sin(this.runPhase * 2) * 0.06
-    this.runner.afro.position.y = 0.12 + Math.abs(Math.sin(this.runPhase)) * 0.02
+    this.runner.afro.position.y = Math.abs(Math.sin(this.runPhase)) * 0.012
 
     this.runner.bob.rotation.x = this.pose.bx
     this.runner.bob.rotation.z = stumble ? Math.sin(this.time * 28) * 0.16 : 0
@@ -1135,8 +1139,8 @@ export class Game {
   private updateCamera(dt: number): void {
     const portrait = this.camera.aspect < 0.85
     const menu = this.phase === 'menu'
-    const camZ = menu ? (portrait ? 5.7 : 6.6) : portrait ? 4.85 : 6.5
-    const camY = menu ? (portrait ? 1.72 : 2.3) : portrait ? 2.42 : 3.25
+    const camZ = menu ? (portrait ? 5.7 : 6.6) : portrait ? 5.4 : 6.95
+    const camY = menu ? (portrait ? 1.85 : 2.4) : portrait ? 3.25 : 3.65
     const targetX = this.playerX * (portrait ? 0.86 : 0.5)
     this.camX += (targetX - this.camX) * Math.min(1, dt * 6)
     let sx = 0
@@ -1148,7 +1152,7 @@ export class Game {
     }
     if (menu) sx += Math.sin(this.time * 0.32) * 0.1
     this.camera.position.set(this.camX + sx, camY + sy, camZ)
-    this.camera.lookAt(this.camX * 0.25, menu ? 0.42 : 1.02, menu ? -5.5 : -6.2)
+    this.camera.lookAt(this.camX * 0.25, menu ? 0.48 : 1.18, menu ? -5.5 : -8.6)
   }
 
   private updateSparks(dt: number): void {
@@ -1454,7 +1458,7 @@ export class Game {
     const height = Math.max(1, window.innerHeight)
     const aspect = width / height
     const portrait = aspect < 0.85
-    const hfov = ((portrait ? 46 : 60) * Math.PI) / 180
+    const hfov = ((portrait ? 52 : 62) * Math.PI) / 180
     const vfov = 2 * Math.atan(Math.tan(hfov / 2) / aspect)
     this.camera.fov = (vfov * 180) / Math.PI
     this.camera.aspect = aspect
@@ -1466,5 +1470,6 @@ export class Game {
 
   private onHide = (): void => {
     if (document.hidden && this.phase === 'playing') this.pause()
+    if (!document.hidden) this.audio.unlock()
   }
 }

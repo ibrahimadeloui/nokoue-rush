@@ -52,6 +52,7 @@ class Ui {
     })
     on('#mute-title', () => game.toggleMute())
     on('#mute-pause', () => game.toggleMute())
+    on('#mute-hud', () => game.toggleMute())
     on('#board-btn', () => game.activate())
     on('#publish', () => {
       game.setPseudo(must<HTMLInputElement>('#pseudo').value)
@@ -137,6 +138,8 @@ class Ui {
     const muteLabel = snapshot.muted ? 'Remettre le son' : 'Couper le son'
     must('#mute-title').classList.toggle('muted', snapshot.muted)
     must('#mute-title').setAttribute('aria-label', muteLabel)
+    must('#mute-hud').classList.toggle('muted', snapshot.muted)
+    must('#mute-hud').setAttribute('aria-label', muteLabel)
     text('#mute-pause', muteLabel)
     text('#board-mode', snapshot.boardMode === 'supabase' ? 'Classement en ligne' : 'Classement sur cet appareil')
 
