@@ -1,17 +1,40 @@
 {
   "name": "Nokoué Rush",
   "short_name": "Nokoué Rush",
+  "description": "Course sans fin dans les rues de Cotonou et Porto-Novo.",
+  "lang": "fr",
+  "id": "./",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#083038",
   "theme_color": "#083038",
-  "lang": "fr",
+  "categories": ["games", "entertainment"],
   "icons": [
     {
-      "src": "favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

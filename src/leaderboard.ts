@@ -97,6 +97,7 @@ export class LocalLeaderboard implements LeaderboardAdapter {
 
 export class SupabaseLeaderboard implements LeaderboardAdapter {
   readonly mode = 'supabase' as const
+  private readonly local = new LocalLeaderboard()
 
   constructor(
     private readonly url: string,
@@ -106,40 +107,55 @@ export class SupabaseLeaderboard implements LeaderboardAdapter {
   async submit(input: ScoreInput): Promise<SubmitResult> {
     const reason = checkScore(input)
     if (reason) return { ok: false, reason }
-    const response = await fetch(`${this.url}/rest/v1/scores`, {
-      method: 'POST',
-      headers: this.headers({ Prefer: 'return=minimal' }),
-      body: JSON.stringify({
-        name: input.name.trim(),
-        score: Math.floor(input.score),
-        cauris: Math.floor(input.cauris),
-        zone: input.zone,
-        duration: input.duration,
-        distance: input.distance,
-      }),
-    })
-    if (!response.ok) return { ok: false, reason: 'Le classement en ligne a refusé le score.' }
-    return { ok: true, reason: 'Score publié.' }
+    try {
+      const response = await fetch(`${this.url}/rest/v1/scores`, {
+        method: 'POST',
+        cache: 'no-store',
+        headers: this.headers({ Prefer: 'return=minimal' }),
+        body: JSON.stringify({
+          name: input.name.trim(),
+          score: Math.floor(input.score),
+          cauris: Math.floor(input.cauris),
+          zone: input.zone,
+          duration: input.duration,
+          distance: input.distance,
+        }),
+      })
+      if (!response.ok) return { ok: false, reason: 'Le classement en ligne a refusé le score.' }
+      return { ok: true, reason: 'Score publié.' }
+    } catch {
+      const local = await this.local.submit(input)
+      if (!local.ok) return local
+      return { ok: true, reason: 'Hors ligne : score enregistré sur cet appareil.' }
+    }
   }
 
   async top(limit = 50): Promise<ScoreRow[]> {
-    const response = await fetch(
-      `${this.url}/rest/v1/scores?select=name,score,cauris,zone,created_at&order=score.desc&limit=${limit}`,
-      { headers: this.headers() },
-    )
-    if (!response.ok) return []
-    const rows = (await response.json()) as Array<Record<string, unknown>>
-    return rows.map(mapRow)
+    try {
+      const response = await fetch(
+        `${this.url}/rest/v1/scores?select=name,score,cauris,zone,created_at&order=score.desc&limit=${limit}`,
+        { cache: 'no-store', headers: this.headers() },
+      )
+      if (!response.ok) return this.local.top(limit)
+      const rows = (await response.json()) as Array<Record<string, unknown>>
+      return rows.map(mapRow)
+    } catch {
+      return this.local.top(limit)
+    }
   }
 
   async personal(name: string): Promise<ScoreRow | null> {
-    const response = await fetch(
-      `${this.url}/rest/v1/scores?select=name,score,cauris,zone,created_at&name=eq.${encodeURIComponent(name.trim())}&order=score.desc&limit=1`,
-      { headers: this.headers() },
-    )
-    if (!response.ok) return null
-    const rows = (await response.json()) as Array<Record<string, unknown>>
-    return rows[0] ? mapRow(rows[0]) : null
+    try {
+      const response = await fetch(
+        `${this.url}/rest/v1/scores?select=name,score,cauris,zone,created_at&name=eq.${encodeURIComponent(name.trim())}&order=score.desc&limit=1`,
+        { cache: 'no-store', headers: this.headers() },
+      )
+      if (!response.ok) return this.local.personal(name)
+      const rows = (await response.json()) as Array<Record<string, unknown>>
+      return rows[0] ? mapRow(rows[0]) : this.local.personal(name)
+    } catch {
+      return this.local.personal(name)
+    }
   }
 
   private headers(extra?: Record<string, string>): HeadersInit {

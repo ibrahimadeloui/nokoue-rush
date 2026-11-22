@@ -424,6 +424,31 @@ button {
 
 .credit { margin: 8px 0 0; }
 
+.install-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(8, 48, 56, 0.08);
+  color: var(--teal-deep);
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.install-hint .text-btn {
+  min-height: 36px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--teal);
+  background: transparent;
+}
+
 .shop {
   position: fixed;
   inset: 0;

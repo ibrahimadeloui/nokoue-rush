@@ -2,8 +2,11 @@ import '@fontsource/lilita-one'
 import '@fontsource/nunito/700.css'
 import '@fontsource/nunito/800.css'
 import './style.css'
+import { registerSW } from 'virtual:pwa-register'
 import { BOARDS, formatCauris, type BoardId } from './boards'
 import { Game, type Snapshot } from './game'
+
+registerSW({ immediate: true })
 
 const ART: Record<BoardId, string> = {
   pirogue: `<svg viewBox="0 0 120 90" aria-hidden="true"><rect width="120" height="90" rx="16" fill="#d7eef8"/><path d="M14 58c10-22 28-30 46-30s36 8 46 30c-16 6-30 6-46 0-14 8-28 8-46 0z" fill="#1d6fa8"/><path d="M28 54c12-4 24-4 36 0" stroke="#f7fbff" stroke-width="3" fill="none"/><path d="M36 48c8-3 16-3 24 0" stroke="#f7fbff" stroke-width="3" fill="none"/><ellipse cx="60" cy="62" rx="28" ry="5" fill="#7af0e4" opacity=".7"/></svg>`,
@@ -306,6 +309,60 @@ function nameOf(id: BoardId): string {
   return BOARDS.find((board) => board.id === id)?.name ?? id
 }
 
+const INSTALL_KEY = 'nokoue-rush-install-hint'
+
+function isStandalone(): boolean {
+  const nav = navigator as Navigator & { standalone?: boolean }
+  return window.matchMedia('(display-mode: standalone)').matches || nav.standalone === true
+}
+
+function setupInstallHint(): void {
+  const box = document.querySelector('#install-hint')
+  if (!(box instanceof HTMLElement) || isStandalone()) return
+  try {
+    if (localStorage.getItem(INSTALL_KEY) === '1') return
+  } catch {
+    /* navigation privée */
+  }
+  const addBtn = must<HTMLButtonElement>('#install-add')
+  const text = must('#install-text')
+  let deferred: { prompt: () => Promise<unknown> } | null = null
+
+  const show = (ios: boolean): void => {
+    box.classList.remove('hidden')
+    if (ios) {
+      text.textContent = 'Sur iPhone : Partager → Sur l’écran d’accueil, pour jouer hors ligne.'
+      addBtn.classList.add('hidden')
+    }
+  }
+
+  const dismiss = (): void => {
+    box.classList.add('hidden')
+    try {
+      localStorage.setItem(INSTALL_KEY, '1')
+    } catch {
+      /* ignore */
+    }
+  }
+
+  must('#install-dismiss').addEventListener('click', dismiss)
+  addBtn.addEventListener('click', () => {
+    if (!deferred) return
+    void deferred.prompt()
+    deferred = null
+    dismiss()
+  })
+
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault()
+    deferred = event as unknown as { prompt: () => Promise<unknown> }
+    show(false)
+  })
+
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent)
+  if (ios) show(true)
+}
+
 const canvas = must<HTMLCanvasElement>('#view')
 const ui = new Ui()
 
@@ -342,6 +399,7 @@ try {
     },
   }
   window.__nokoue = api
+  setupInstallHint()
 } catch (error) {
   console.error(error)
   const note = document.createElement('p')

@@ -1509,15 +1509,19 @@ export class Game {
       this.emit()
       return
     }
-    const result = await this.leaderboard.submit({
-      name: this.progress.pseudo,
-      score: run.score,
-      cauris: run.cauris,
-      zone: run.zone,
-      duration: run.duration,
-      distance: run.distance,
-    })
-    this.boardNote = result.reason
+    try {
+      const result = await this.leaderboard.submit({
+        name: this.progress.pseudo,
+        score: run.score,
+        cauris: run.cauris,
+        zone: run.zone,
+        duration: run.duration,
+        distance: run.distance,
+      })
+      this.boardNote = result.reason
+    } catch {
+      this.boardNote = 'Hors ligne : le classement en ligne est indisponible. Ton meilleur score reste enregistré ici.'
+    }
     this.emit()
   }
 
