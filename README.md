@@ -4,6 +4,10 @@ Course sans fin à trois voies dans les rues et les marchés de Cotonou et Porto
 
 Créé par **Ibrahim ADELOUI**, développeur à Porto-Novo, Bénin.
 
+Jeu en ligne : [https://ibrahimadeloui.github.io/nokoue-rush/](https://ibrahimadeloui.github.io/nokoue-rush/)
+
+Le même dépôt peut aussi être déployé sur Vercel, servi à la racine `/`.
+
 ## Lancer en local
 
 Il faut Node.js 20 ou plus récent.
@@ -13,7 +17,7 @@ npm install
 npm run dev
 ```
 
-Ouvre [http://127.0.0.1:47321](http://127.0.0.1:47321). Le serveur écoute sur toutes les interfaces, tu peux donc le joindre depuis un téléphone sur le même réseau.
+Ouvre [http://127.0.0.1:47321/nokoue-rush/](http://127.0.0.1:47321/nokoue-rush/). En local le préfixe est le même que sur GitHub Pages. Le serveur écoute sur toutes les interfaces, tu peux donc le joindre depuis un téléphone sur le même réseau.
 
 ## Build et déploiement
 
@@ -22,13 +26,11 @@ npm run build
 npm run preview
 ```
 
-Le dossier `dist/` est un site statique (HTML, JS, CSS, polices). Tu peux le publier tel quel :
+Le dossier `dist/` est un site statique (HTML, JS, CSS, polices).
 
-- Netlify, Cloudflare Pages ou Vercel : indique `npm run build` et le dossier `dist`
-- GitHub Pages : publie le contenu de `dist`
-- n’importe quel hébergeur de fichiers statiques
-
-Les chemins sont relatifs (`base: './'`), le jeu fonctionne aussi dans un sous-dossier.
+- **GitHub Pages** : [https://ibrahimadeloui.github.io/nokoue-rush/](https://ibrahimadeloui.github.io/nokoue-rush/). Chaque push sur `main` lance `.github/workflows/pages.yml`, qui construit `dist/` et le publie. La base Vite est `/nokoue-rush/`.
+- **Vercel** : importe le dépôt. `vercel.json` indique Vite et le dossier `dist`. Vercel pose `VERCEL=1` au build, donc la base redevient `/` et le jeu est servi à la racine du domaine.
+- Les secrets `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY` sont facultatifs. Sans eux, le classement reste sur l’appareil. Sur GitHub, ajoute-les dans **Settings → Secrets and variables → Actions** si tu branches Supabase. Sur Vercel, les mêmes noms vont dans les variables d’environnement du projet.
 
 ## Contrôles
 
