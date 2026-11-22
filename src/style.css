@@ -740,3 +740,10 @@ button {
   .hud-bottom { padding-bottom: 2px; }
   .btn.small { min-width: 132px; }
 }
+
+.ad-btn {
+  width: 100%;
+}
+.ad-btn:disabled {
+  opacity: 0.65;
+}

@@ -2,11 +2,17 @@ import '@fontsource/lilita-one'
 import '@fontsource/nunito/700.css'
 import '@fontsource/nunito/800.css'
 import './style.css'
-import { registerSW } from 'virtual:pwa-register'
 import { BOARDS, formatCauris, type BoardId } from './boards'
+import { initAds } from './ads'
 import { Game, type Snapshot } from './game'
 
-registerSW({ immediate: true })
+const isNativeApp = import.meta.env.VITE_CAPACITOR === '1'
+
+if (!isNativeApp) {
+  void import('virtual:pwa-register').then(({ registerSW }) => {
+    registerSW({ immediate: true })
+  })
+}
 
 const ART: Record<BoardId, string> = {
   pirogue: `<svg viewBox="0 0 120 90" aria-hidden="true"><rect width="120" height="90" rx="16" fill="#d7eef8"/><path d="M14 58c10-22 28-30 46-30s36 8 46 30c-16 6-30 6-46 0-14 8-28 8-46 0z" fill="#1d6fa8"/><path d="M28 54c12-4 24-4 36 0" stroke="#f7fbff" stroke-width="3" fill="none"/><path d="M36 48c8-3 16-3 24 0" stroke="#f7fbff" stroke-width="3" fill="none"/><ellipse cx="60" cy="62" rx="28" ry="5" fill="#7af0e4" opacity=".7"/></svg>`,
@@ -36,6 +42,12 @@ class Ui {
     this.game = game
     on('#play', () => this.start())
     on('#retry', () => this.start())
+    on('#ad-revive', () => {
+      void game.watchRevive()
+    })
+    on('#ad-double', () => {
+      void game.watchDoubleCauris()
+    })
     on('#open-shop', () => this.openShop('menu'))
     on('#over-shop', () => this.openShop('over'))
     on('#shop-back', () => this.closeOverlay())
@@ -91,6 +103,14 @@ class Ui {
     this.hud.classList.toggle('hidden', !showHud)
     this.pause.classList.toggle('hidden', !showPause)
     this.over.classList.toggle('hidden', !showOver)
+    const reviveBtn = must<HTMLButtonElement>('#ad-revive')
+    const doubleBtn = must<HTMLButtonElement>('#ad-double')
+    reviveBtn.classList.toggle('hidden', !snapshot.adsAvailable || !snapshot.canRevive)
+    doubleBtn.classList.toggle('hidden', !snapshot.adsAvailable || !snapshot.canDoubleCauris)
+    reviveBtn.disabled = snapshot.adBusy
+    doubleBtn.disabled = snapshot.adBusy
+    reviveBtn.textContent = snapshot.adBusy && snapshot.canRevive ? 'Pub en cours…' : 'Regarder une pub pour continuer'
+    doubleBtn.textContent = snapshot.adBusy && snapshot.canDoubleCauris ? 'Pub en cours…' : 'Regarder une pub pour doubler les cauris'
     this.vignette.classList.toggle('on', snapshot.danger && snapshot.phase !== 'menu')
 
     text('#best', formatCauris(snapshot.best))
@@ -317,6 +337,7 @@ function isStandalone(): boolean {
 }
 
 function setupInstallHint(): void {
+  if (isNativeApp) return
   const box = document.querySelector('#install-hint')
   if (!(box instanceof HTMLElement) || isStandalone()) return
   try {
@@ -400,6 +421,7 @@ try {
   }
   window.__nokoue = api
   setupInstallHint()
+  if (isNativeApp) void initAds()
 } catch (error) {
   console.error(error)
   const note = document.createElement('p')

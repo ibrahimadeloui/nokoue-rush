@@ -5,6 +5,8 @@ interface Label {
   text: string
   bg: string
   fg: string
+  logo?: string
+  logoImg?: HTMLImageElement
   texture: THREE.CanvasTexture
   material: THREE.MeshBasicMaterial
 }
@@ -19,13 +21,36 @@ function paint(entry: Label): void {
   const h = canvas.height
   g.clearRect(0, 0, w, h)
   g.fillStyle = entry.bg
-  roundRect(g, 4, 4, w - 8, h - 8, 18)
+  roundRect(g, 4, 4, w - 8, h - 8, Math.min(18, h * 0.12))
   g.fill()
+
+  const words = entry.text.trim().split(/\s+/)
+  const twoLines = words.length >= 2 && entry.text.length > 12
+  const lines = twoLines
+    ? [words.slice(0, Math.ceil(words.length / 2)).join(' '), words.slice(Math.ceil(words.length / 2)).join(' ')]
+    : [entry.text]
+
+  const hasLogo = !!entry.logoImg
+  const left = hasLogo ? w * 0.22 : 0
+  const cx = left + (w - left) / 2
+  if (hasLogo && entry.logoImg) {
+    const box = Math.min(h * 0.62, w * 0.16)
+    const lx = 18
+    const ly = (h - box) / 2
+    g.drawImage(entry.logoImg, lx, ly, box, box)
+  }
+
   g.fillStyle = entry.fg
-  g.font = `800 ${Math.floor(h * 0.46)}px Nunito, "Trebuchet MS", sans-serif`
   g.textAlign = 'center'
   g.textBaseline = 'middle'
-  g.fillText(entry.text, w / 2, h / 2 + 2)
+  const fontSize = twoLines ? Math.floor(h * 0.3) : Math.floor(h * (entry.text.length > 10 ? 0.36 : 0.46))
+  g.font = `800 ${fontSize}px Nunito, "Trebuchet MS", sans-serif`
+  if (twoLines) {
+    g.fillText(lines[0], cx, h * 0.38)
+    g.fillText(lines[1], cx, h * 0.68)
+  } else {
+    g.fillText(lines[0], cx, h / 2 + 2)
+  }
   entry.texture.needsUpdate = true
 }
 
@@ -46,20 +71,34 @@ function roundRect(
   g.closePath()
 }
 
-export function labelMaterial(text: string, bg: string, fg: string): THREE.MeshBasicMaterial {
-  const key = `${text}|${bg}|${fg}`
+export function labelMaterial(
+  text: string,
+  bg: string,
+  fg: string,
+  options?: { logo?: string },
+): THREE.MeshBasicMaterial {
+  const logo = options?.logo
+  const key = `${text}|${bg}|${fg}|${logo ?? ''}`
   const found = labels.find((l) => l.key === key)
   if (found) return found.material
   const canvas = document.createElement('canvas')
-  canvas.width = 512
-  canvas.height = 160
+  canvas.width = 768
+  canvas.height = 192
   const texture = new THREE.CanvasTexture(canvas)
   texture.colorSpace = THREE.SRGBColorSpace
   texture.anisotropy = 4
-  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true })
-  const entry: Label = { key, text, bg, fg, texture, material }
+  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false })
+  const entry: Label = { key, text, bg, fg, logo, texture, material }
   labels.push(entry)
   paint(entry)
+  if (logo && typeof Image !== 'undefined') {
+    const img = new Image()
+    img.onload = () => {
+      entry.logoImg = img
+      paint(entry)
+    }
+    img.src = logo
+  }
   return material
 }
 

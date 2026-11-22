@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { BoardId } from './boards'
+import { SPONSORS, stallSponsor, sponsorHex, sponsorMaterial } from './sponsors'
 import { labelMaterial } from './textures'
 import type { ZoneId } from './zones'
 
@@ -157,11 +158,16 @@ export function makeRunner(): RunnerParts {
   mid.position.y = 1.14
   bob.add(mid)
 
-  const top = box(0.5, 0.34, 0.3, 0x14988f)
+  const brand = SPONSORS.board
+  const top = box(0.5, 0.34, 0.3, sponsorHex(brand.color))
   top.position.y = 1.36
   const hem = box(0.52, 0.07, 0.32, 0xf0c430)
   hem.position.y = 1.21
   bob.add(top, hem)
+  const kit = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 0.22), sponsorMaterial(brand))
+  kit.position.set(0.02, 1.48, 0.22)
+  kit.renderOrder = 4
+  bob.add(kit)
   const motifs: Array<[number, number, number, number]> = [
     [-0.12, 1.4, 0.16, 0xf0c430],
     [0.12, 1.38, 0.16, 0xff6b57],
@@ -282,6 +288,14 @@ function makeBoards(): Record<BoardId, THREE.Group> {
   }
 }
 
+function boardBrand(group: THREE.Group): void {
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.64, 0.18), sponsorMaterial(SPONSORS.board))
+  plate.rotation.x = -Math.PI / 2
+  plate.position.set(0, 0.21, 0.12)
+  plate.renderOrder = 4
+  group.add(plate)
+}
+
 function glowPlane(color: number): THREE.Mesh {
   const mesh = new THREE.Mesh(
     new THREE.PlaneGeometry(0.78, 1.45),
@@ -302,6 +316,7 @@ function boardPirogue(): THREE.Group {
   baker.put(GEO.box, 0xf7fbff, 0, 0.19, -0.22, 0.32, 0.02, 0.08)
   baker.put(GEO.cone, 0x1d6fa8, 0, 0.12, -0.78, 0.16, 0.22, 0.28, Math.PI / 2, 0, 0)
   group.add(baker.mesh(vcMat))
+  boardBrand(group)
   group.position.y = 0.05
   return group
 }
@@ -316,6 +331,7 @@ function boardWax(): THREE.Group {
   baker.put(GEO.box, 0xf0c430, -0.2, 0.15, 0.42, 0.12, 0.02, 0.12, 0, Math.PI / 4, 0)
   baker.put(GEO.box, 0x111111, 0.2, 0.15, -0.42, 0.12, 0.02, 0.12, 0, Math.PI / 4, 0)
   group.add(baker.mesh(vcMat))
+  boardBrand(group)
   group.position.y = 0.05
   return group
 }
@@ -333,6 +349,7 @@ function boardTaxi(): THREE.Group {
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.22), labelMaterial('PORTO-NOVO', '#173024', '#f0c430'))
   sign.position.set(0, 0.36, 0.35)
   group.add(sign)
+  boardBrand(group)
   group.position.y = 0.05
   return group
 }
@@ -349,6 +366,7 @@ function boardPalais(): THREE.Group {
   baker.put(GEO.cyl, 0x14988f, 0.18, 0.16, 0.05, 0.07, 0.05, 0.07)
   baker.put(GEO.box, 0xf0c430, 0, 0.18, 0, 0.08, 0.03, 0.08)
   group.add(baker.mesh(vcMat))
+  boardBrand(group)
   group.position.y = 0.05
   return group
 }
@@ -487,7 +505,23 @@ export function makeSegment(zone: ZoneId, variant = 0): THREE.Group {
   signB.position.set(3.2, 2.15, 5.2)
   signB.rotation.y = -0.5
   group.add(sign, signB)
+  if (zone === 'marche') addStallSigns(group)
   return group
+}
+
+function addStallSigns(group: THREE.Group): void {
+  const places: Array<[number, number, number]> = [
+    [-1, -5.2, 1],
+    [-1, 4.8, 0],
+    [1, -4.2, 3],
+    [1, 5.4, 2],
+  ]
+  for (const [side, z, index] of places) {
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.48), sponsorMaterial(stallSponsor(index)))
+    sign.position.set(side * 3.15, 1.72, z + 0.58)
+    sign.renderOrder = 3
+    group.add(sign)
+  }
 }
 
 function roadMarks(baker: Baker, color = 0xf8f4ea): void {
@@ -789,8 +823,19 @@ export function makeTaxi(): THREE.Group {
   const body = baker.mesh(vcMat)
   body.renderOrder = 2
   group.add(obstacleShadow(1.05), body)
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.58, 0.26), labelMaterial('TAXI', '#173024', '#f0c430'))
-  sign.position.set(0, 1.54, 0.16)
+  const livery = SPONSORS.taxi
+  const roof = box(1.06, 0.1, 1.08, sponsorHex(livery.color))
+  roof.position.set(0, 1.4, -0.08)
+  group.add(roof)
+  for (const side of [-1, 1] as const) {
+    const door = new THREE.Mesh(new THREE.PlaneGeometry(0.92, 0.36), sponsorMaterial(livery))
+    door.position.set(side * 0.63, 0.8, 0.06)
+    door.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2
+    door.renderOrder = 4
+    group.add(door)
+  }
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.28), sponsorMaterial(livery))
+  sign.position.set(0, 1.56, 0.16)
   sign.renderOrder = 3
   group.add(sign)
   return group
@@ -843,20 +888,27 @@ export function makeZoneBanner(wide: boolean): THREE.Group {
   baker.put(GEO.cyl, 0x6b3e23, -half, 1.25, 0, 0.045, 2.5, 0.045)
   baker.put(GEO.cyl, 0x6b3e23, half, 1.25, 0, 0.045, 2.5, 0.045)
   group.add(baker.mesh(vcMat))
-  const labels: Array<[string, string, string, string]> = wide
-    ? [['GLISSE', '#fff6e8', '#9a3412', 'wide']]
-    : [
-        ['TISSUS', '#fff6e8', '#9a3412', 'marche'],
-        ['FILET', '#e7f6f4', '#0f766e', 'lagune'],
-        ['PALAIS', '#fff8ef', '#7c2d12', 'porto'],
-        ['PLAGE', '#fff6e8', '#1d4e89', 'plage'],
-      ]
-  for (const [text, bg, fg, zone] of labels) {
-    const cloth = new THREE.Mesh(new THREE.PlaneGeometry(wide ? 4.15 : 1.15, 0.62), labelMaterial(text, bg, fg))
-    cloth.position.set(0, 1.58, 0)
-    cloth.name = `cloth-${zone}`
-    cloth.visible = zone === 'marche' || zone === 'wide'
+  if (wide) {
+    const cloth = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 0.78), sponsorMaterial(SPONSORS.banner))
+    cloth.position.set(0, 1.62, 0)
+    cloth.name = 'cloth-wide'
+    cloth.renderOrder = 3
     group.add(cloth)
+  } else {
+    const labels: Array<[string, string, string, string]> = [
+      ['TISSUS', '#fff6e8', '#9a3412', 'marche'],
+      ['FILET', '#e7f6f4', '#0f766e', 'lagune'],
+      ['PALAIS', '#fff8ef', '#7c2d12', 'porto'],
+      ['PLAGE', '#fff6e8', '#1d4e89', 'plage'],
+    ]
+    for (const [text, bg, fg, zone] of labels) {
+      const cloth = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 0.62), labelMaterial(text, bg, fg))
+      cloth.position.set(0, 1.58, 0)
+      cloth.name = `cloth-${zone}`
+      cloth.visible = zone === 'marche'
+      cloth.renderOrder = 3
+      group.add(cloth)
+    }
   }
   return group
 }

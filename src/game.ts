@@ -32,6 +32,7 @@ import {
   type RunnerParts,
 } from './models'
 import { loadSave, writeSave, type SaveData } from './save'
+import { adsAvailable, initAds, showRewardedAd } from './ads'
 import { zoneAt, zoneById, type ZoneId } from './zones'
 
 export type Phase = 'menu' | 'playing' | 'paused' | 'over'
@@ -78,6 +79,10 @@ export interface Snapshot {
   pseudo: string
   boardMode: 'local' | 'supabase'
   boardNote: string
+  adsAvailable: boolean
+  canRevive: boolean
+  canDoubleCauris: boolean
+  adBusy: boolean
 }
 
 const LANES = [-1.42, 0, 1.42]
@@ -231,6 +236,10 @@ export class Game {
   private progress: ProgressSave
   private readonly leaderboard: LeaderboardAdapter
   private boardNote = ''
+  private pendingSettle = false
+  private reviveUsed = false
+  private caurisDoubled = false
+  private adBusy = false
   private shownZone: ZoneId = 'marche'
   private runTime = 0
   private hornCool = 0
@@ -387,11 +396,17 @@ export class Game {
   }
 
   play(): void {
+    this.settleRun()
     this.audio.unlock()
     this.clearEnts()
     this.phase = 'playing'
     this.score = 0
     this.caurisRun = 0
+    this.pendingSettle = false
+    this.reviveUsed = false
+    this.caurisDoubled = false
+    this.adBusy = false
+    void initAds()
     this.distance = 0
     this.multiplier = 1
     this.streak = 0
@@ -453,6 +468,7 @@ export class Game {
   }
 
   menu(): void {
+    this.settleRun()
     this.clearEnts()
     this.phase = 'menu'
     this.shield = false
@@ -520,10 +536,9 @@ export class Game {
     return true
   }
 
-  debugSpawn(kind: string, lane: number): void {
+  debugSpawn(kind: string, lane: number, z = -5.4): void {
     const safeLane = clamp(lane | 0, 0, 2)
     this.spawnCool = Math.max(this.spawnCool, 4)
-    const z = -5.4
     if (kind === 'coin' || kind === 'coin5') this.spawnCoin(safeLane, z, kind === 'coin5' ? 1.7 : 0.95, kind === 'coin5' ? 5 : 1)
     else if (kind === 'magnet' || kind === 'mult') this.spawnPower(kind, safeLane, z)
     else if (kind in SPECS) this.spawnObstacle(kind as Kind, safeLane, z)
@@ -596,6 +611,10 @@ export class Game {
       pseudo: this.progress.pseudo,
       boardMode: this.leaderboard.mode,
       boardNote: this.boardNote,
+      adsAvailable: adsAvailable(),
+      canRevive: this.phase === 'over' && this.canOfferRevive(),
+      canDoubleCauris: this.phase === 'over' && this.canOfferDouble(),
+      adBusy: this.adBusy,
     }
   }
 
@@ -1018,8 +1037,6 @@ export class Game {
     const score = Math.floor(this.score)
     this.newBest = score > this.best
     if (this.newBest) this.best = score
-    this.audio.over(this.newBest)
-    this.progress.xp += Math.floor(this.distance / 25)
     this.lastRun = {
       score,
       duration: this.runTime,
@@ -1027,9 +1044,81 @@ export class Game {
       cauris: this.caurisRun,
       zone: zoneById(this.shownZone).name,
     }
+    this.pendingSettle = true
+    this.audio.over(this.newBest)
+    if (!this.canOfferRevive() && !this.canOfferDouble()) this.settleRun()
+    if (navigator.vibrate) navigator.vibrate([40, 30, 70])
+  }
+
+  private canOfferRevive(): boolean {
+    return adsAvailable() && !this.reviveUsed
+  }
+
+  private canOfferDouble(): boolean {
+    return adsAvailable() && !this.caurisDoubled && this.caurisRun > 0
+  }
+
+  private settleRun(): void {
+    if (!this.pendingSettle) return
+    this.pendingSettle = false
+    if (this.lastRun.score > this.best) this.best = this.lastRun.score
+    this.progress.xp += Math.floor(this.lastRun.distance / 25)
     this.persist()
     void this.publishScore()
-    if (navigator.vibrate) navigator.vibrate([40, 30, 70])
+  }
+
+  async watchRevive(): Promise<boolean> {
+    if (this.phase !== 'over' || !this.canOfferRevive() || this.adBusy) return false
+    this.adBusy = true
+    this.emit()
+    const earned = await showRewardedAd()
+    this.adBusy = false
+    if (!earned) {
+      this.emit()
+      return false
+    }
+    this.reviveUsed = true
+    this.pendingSettle = false
+    this.phase = 'playing'
+    this.danger = false
+    this.dangerT = 0
+    this.stumbleT = 0
+    this.iframe = 1.8
+    this.shake = 0
+    this.py = 0
+    this.vy = 0
+    this.grounded = true
+    this.sliding = false
+    this.cause = ''
+    this.line = 'Reprise ! Encore une chance.'
+    this.toast = 'C’est reparti !'
+    this.toastT = 1.6
+    for (const ent of this.ents) {
+      if (ent.active && ent.z > -10) this.deactivate(ent)
+    }
+    this.emit()
+    return true
+  }
+
+  async watchDoubleCauris(): Promise<boolean> {
+    if (this.phase !== 'over' || !this.canOfferDouble() || this.adBusy) return false
+    this.adBusy = true
+    this.emit()
+    const earned = await showRewardedAd()
+    this.adBusy = false
+    if (!earned) {
+      this.emit()
+      return false
+    }
+    this.caurisDoubled = true
+    this.wallet += this.caurisRun
+    this.caurisRun *= 2
+    this.lastRun.cauris = this.caurisRun
+    this.toast = 'Cauris doublés !'
+    this.toastT = 1.8
+    this.persist()
+    this.emit()
+    return true
   }
 
   private takeCoin(ent: Ent): void {
@@ -1364,6 +1453,7 @@ export class Game {
   private lastRun = { score: 0, duration: 0, distance: 0, cauris: 0, zone: 'Marché Dantokpa' }
 
   publishNow(): void {
+    this.settleRun()
     void this.publishScore()
   }
 

@@ -6,3 +6,19 @@ dist
 .env
 .env.*
 !.env.example
+
+# Capacitor / Android
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+android/app/release/
+android/app/debug/
+android/captures/
+android/.idea/
+android/*.iml
+android/app/*.iml
+*.jks
+*.keystore
+keystore.properties
+android-keystore/
