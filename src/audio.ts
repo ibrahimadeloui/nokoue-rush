@@ -22,56 +22,56 @@ const TRACKS: Record<MusicCue, Track> = {
     step: 0.21,
     count: 12,
     bell: BELL.map((hit) => hit * 0.7),
-    kick: [0.25, 0, 0, 0, 0, 0, 0.18, 0, 0, 0, 0, 0],
-    clap: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    bass: [73.4, 0, 0, 98, 0, 0, 87.3, 0, 0, 110, 0, 0],
-    lead: [392, 0, 440, 0, 349.2, 0, 392, 0, 329.6, 0, 294, 0],
-    drum: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    hat: 0.012,
+    kick: [0.32, 0, 0, 0.12, 0, 0, 0.22, 0, 0, 0.1, 0, 0],
+    clap: [0, 0, 0, 0, 0, 0, 0, 0.08, 0, 0, 0, 0],
+    bass: [73.4, 0, 73.4, 98, 0, 0, 87.3, 0, 87.3, 110, 0, 0],
+    lead: [392, 0, 440, 392, 349.2, 0, 392, 0, 329.6, 349.2, 294, 0],
+    drum: [0.35, 0, 0, 0.2, 0, 0, 0.28, 0, 0, 0.18, 0, 0],
+    hat: 0.016,
   },
   marche: {
-    step: 0.145,
+    step: 0.132,
     count: 12,
     bell: BELL,
-    kick: [0.62, 0, 0, 0.22, 0, 0, 0.48, 0, 0.2, 0, 0, 0.28],
-    clap: [0, 0, 0, 0.16, 0, 0, 0, 0, 0.18, 0, 0, 0],
-    bass: [73.4, 0, 73.4, 0, 98, 0, 87.3, 0, 110, 0, 98, 73.4],
-    lead: [293.7, 0, 349.2, 0, 392, 0, 440, 0, 392, 349.2, 0, 293.7],
-    drum: [1, 0, 0.4, 0, 1, 0.6, 0, 0.5, 0, 1, 0, 0.3],
-    hat: 0.02,
+    kick: [0.78, 0, 0.2, 0, 0.55, 0, 0.7, 0, 0.25, 0.45, 0, 0.32],
+    clap: [0, 0, 0, 0.18, 0, 0, 0, 0.12, 0.22, 0, 0, 0.1],
+    bass: [73.4, 0, 73.4, 98, 0, 87.3, 87.3, 0, 110, 0, 98, 73.4],
+    lead: [293.7, 349.2, 0, 392, 0, 440, 392, 0, 349.2, 392, 0, 293.7],
+    drum: [1, 0.25, 0.7, 0, 1, 0.55, 0.2, 0.8, 0.3, 1, 0, 0.6],
+    hat: 0.028,
   },
   lagune: {
     step: 0.18,
     count: 12,
     bell: BELL.map((hit) => hit * 0.55),
-    kick: [0.35, 0, 0, 0, 0.22, 0, 0.3, 0, 0, 0.18, 0, 0],
-    clap: [0, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0],
-    bass: [65.4, 0, 0, 87.3, 0, 98, 0, 0, 73.4, 0, 87.3, 0],
-    lead: [349.2, 0, 0, 392, 0, 440, 0, 329.6, 0, 392, 0, 293.7],
-    drum: [0.5, 0, 0, 0.3, 0, 0, 0.6, 0, 0, 0.4, 0, 0],
-    hat: 0.028,
+    kick: [0.5, 0, 0.18, 0, 0.32, 0, 0.42, 0, 0.16, 0.28, 0, 0.2],
+    clap: [0, 0, 0, 0.1, 0, 0, 0.12, 0, 0, 0, 0.08, 0],
+    bass: [65.4, 0, 65.4, 87.3, 0, 98, 0, 87.3, 73.4, 0, 87.3, 0],
+    lead: [349.2, 0, 392, 0, 440, 392, 0, 329.6, 0, 392, 349.2, 293.7],
+    drum: [0.7, 0, 0.35, 0.2, 0.55, 0, 0.75, 0, 0.3, 0.5, 0, 0.4],
+    hat: 0.032,
   },
   porto: {
     step: 0.15,
     count: 16,
     bell: [1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0],
-    kick: [0.7, 0, 0, 0, 0, 0.28, 0.45, 0, 0, 0.22, 0.62, 0, 0, 0, 0.3, 0],
-    clap: [0, 0, 0, 0, 0.2, 0, 0, 0, 0, 0, 0, 0, 0.22, 0, 0, 0],
-    bass: [82.4, 0, 82.4, 0, 98, 0, 73.4, 0, 110, 0, 98, 0, 87.3, 0, 73.4, 0],
-    lead: [329.6, 0, 392, 0, 440, 0, 392, 0, 349.2, 0, 440, 0, 392, 0, 329.6, 0],
-    drum: [0.3, 0, 0.6, 0, 0, 0.4, 0, 0, 0.8, 0, 0.3, 0, 0, 0.5, 0, 0],
-    hat: 0.018,
+    kick: [0.75, 0, 0.2, 0, 0, 0.32, 0.55, 0, 0.2, 0.28, 0.68, 0, 0, 0.22, 0.4, 0],
+    clap: [0, 0, 0, 0, 0.22, 0, 0, 0.1, 0, 0, 0, 0, 0.24, 0, 0, 0.08],
+    bass: [82.4, 0, 82.4, 98, 0, 73.4, 73.4, 0, 110, 0, 98, 0, 87.3, 0, 73.4, 82.4],
+    lead: [329.6, 392, 0, 440, 0, 392, 349.2, 0, 440, 0, 392, 0, 349.2, 392, 0, 329.6],
+    drum: [0.55, 0, 0.75, 0.2, 0.4, 0.55, 0, 0.35, 0.9, 0, 0.4, 0.2, 0, 0.65, 0, 0.3],
+    hat: 0.024,
   },
   plage: {
     step: 0.135,
     count: 16,
     bell: [1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1],
-    kick: [0.55, 0, 0, 0.2, 0, 0, 0.48, 0, 0, 0.24, 0.4, 0, 0, 0, 0.32, 0],
-    clap: [0, 0, 0, 0, 0.16, 0, 0, 0, 0, 0, 0, 0, 0.18, 0, 0, 0.1],
-    bass: [98, 0, 98, 0, 123.5, 0, 110, 0, 98, 0, 87.3, 0, 110, 0, 98, 0],
-    lead: [392, 0, 494, 0, 440, 0, 523, 0, 440, 0, 392, 0, 349.2, 0, 392, 0],
-    drum: [0.2, 0, 0, 0.4, 0, 0, 0.3, 0, 0.5, 0, 0, 0.3, 0, 0, 0.4, 0],
-    hat: 0.026,
+    kick: [0.62, 0, 0.18, 0.28, 0, 0, 0.55, 0, 0.2, 0.3, 0.48, 0, 0, 0.2, 0.38, 0],
+    clap: [0, 0, 0, 0, 0.18, 0, 0, 0.1, 0, 0, 0, 0, 0.2, 0, 0, 0.12],
+    bass: [98, 0, 98, 110, 123.5, 0, 110, 0, 98, 0, 87.3, 98, 110, 0, 98, 87.3],
+    lead: [392, 440, 494, 0, 440, 523, 0, 494, 440, 0, 392, 0, 349.2, 392, 0, 440],
+    drum: [0.45, 0.2, 0, 0.55, 0.25, 0, 0.5, 0.2, 0.7, 0, 0.3, 0.45, 0, 0.25, 0.55, 0],
+    hat: 0.03,
   },
 }
 
@@ -148,32 +148,45 @@ export class AudioBus {
   jump(): void {
     if (!this.can()) return
     const t = this.ctx!.currentTime
+    this.noiseBurst(t, 900, 0.1, 0.1, 'highpass')
     const o = this.ctx!.createOscillator()
     const g = this.ctx!.createGain()
     o.type = 'triangle'
-    o.frequency.setValueAtTime(320, t)
-    o.frequency.exponentialRampToValueAtTime(880, t + 0.11)
-    g.gain.setValueAtTime(0.16, t)
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18)
+    o.frequency.setValueAtTime(280, t)
+    o.frequency.exponentialRampToValueAtTime(980, t + 0.14)
+    g.gain.setValueAtTime(0.18, t)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22)
     o.connect(g)
     g.connect(this.master!)
     o.start(t)
-    o.stop(t + 0.2)
-    this.tone(523, t + 0.05, 0.08, 'sine', 0.04, this.master!)
+    o.stop(t + 0.24)
+    this.tone(587, t + 0.04, 0.1, 'sine', 0.05, this.master!)
   }
 
   slide(): void {
     if (!this.can()) return
-    this.noiseBurst(this.ctx!.currentTime, 700, 0.16, 0.13, 'lowpass')
+    const t = this.ctx!.currentTime
+    this.noiseBurst(t, 520, 0.22, 0.16, 'lowpass')
+    this.noiseBurst(t + 0.04, 1600, 0.12, 0.08, 'highpass')
+    this.tone(180, t, 0.12, 'triangle', 0.04, this.master!)
+  }
+
+  swish(): void {
+    if (!this.can()) return
+    const t = this.ctx!.currentTime
+    this.noiseBurst(t, 1800, 0.09, 0.11, 'bandpass')
+    this.tone(360, t, 0.07, 'triangle', 0.045, this.master!)
+    this.tone(540, t + 0.03, 0.06, 'sine', 0.03, this.master!)
   }
 
   coin(mult: number): void {
     if (!this.can()) return
     const t = this.ctx!.currentTime
-    const f = 784 + Math.min(mult, 8) * 40
-    this.tone(f, t, 0.1, 'sine', 0.11, this.master!)
-    this.tone(f * 1.5, t + 0.04, 0.13, 'triangle', 0.07, this.master!)
-    this.tone(f * 2, t + 0.07, 0.1, 'sine', 0.04, this.master!)
+    const f = 830 + Math.min(mult, 8) * 48
+    this.tone(f, t, 0.08, 'square', 0.05, this.master!)
+    this.tone(f, t, 0.12, 'sine', 0.11, this.master!)
+    this.tone(f * 1.5, t + 0.04, 0.14, 'triangle', 0.08, this.master!)
+    this.tone(f * 2.0, t + 0.07, 0.1, 'sine', 0.045, this.master!)
   }
 
   power(): void {
@@ -193,9 +206,11 @@ export class AudioBus {
   hit(): void {
     if (!this.can()) return
     const t = this.ctx!.currentTime
-    this.noiseBurst(t, 180, 0.22, 0.26, 'lowpass')
-    this.tone(98, t, 0.24, 'sine', 0.16, this.master!)
-    this.tone(62, t, 0.18, 'triangle', 0.08, this.master!)
+    this.noiseBurst(t, 160, 0.26, 0.3, 'lowpass')
+    this.noiseBurst(t, 900, 0.12, 0.12, 'bandpass')
+    this.tone(90, t, 0.28, 'sine', 0.18, this.master!)
+    this.tone(54, t, 0.22, 'triangle', 0.1, this.master!)
+    this.tone(220, t + 0.05, 0.08, 'square', 0.04, this.master!)
   }
 
   whistle(): void {
@@ -232,12 +247,14 @@ export class AudioBus {
     o.type = 'triangle'
     o.frequency.setValueAtTime(440, t)
     o.frequency.exponentialRampToValueAtTime(120, t + 0.45)
-    g.gain.setValueAtTime(0.13, t)
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5)
+    g.gain.setValueAtTime(0.15, t)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.62)
     o.connect(g)
     g.connect(this.master!)
     o.start(t)
-    o.stop(t + 0.52)
+    o.stop(t + 0.64)
+    this.tone(196, t + 0.2, 0.22, 'sine', 0.05, this.master!)
+    this.djembe(t + 0.08, 0.5)
   }
 
   buy(): void {
@@ -248,14 +265,20 @@ export class AudioBus {
 
   private playStep(track: Track, index: number, time: number): void {
     if (!this.music) return
-    if (track.bell[index]) this.bell(time, 0.05 * track.bell[index])
-    if (track.kick[index]) this.kick(time, track.kick[index])
-    if (track.clap[index]) this.noiseBurst(time, 1800, 0.07, track.clap[index], 'bandpass', this.music)
-    if (track.drum[index]) this.talking(time, track.drum[index])
-    if (track.bass[index]) this.tone(track.bass[index], time, track.step * 0.9, 'triangle', 0.1, this.music)
-    if (track.lead[index]) this.tone(track.lead[index], time, track.step * 0.8, 'sine', 0.055, this.music)
-    if (track.hat > 0 && index % 2 === 0) this.hat(time, index % 4 === 2, track.hat)
-    if (track.bell[index] && index % 3 === 0) this.tone(988, time + 0.03, 0.05, 'square', 0.018, this.music)
+    if (track.bell[index]) this.bell(time, 0.055 * track.bell[index])
+    if (track.kick[index]) this.kick(time, track.kick[index] * 0.9)
+    if (track.clap[index]) this.noiseBurst(time, 1800, 0.08, track.clap[index], 'bandpass', this.music)
+    if (track.drum[index]) this.djembe(time, track.drum[index])
+    if (track.bass[index]) this.tone(track.bass[index], time, track.step * 0.95, 'triangle', 0.11, this.music)
+    if (track.lead[index]) {
+      this.tone(track.lead[index], time, track.step * 0.85, 'sine', 0.06, this.music)
+      this.tone(track.lead[index] * 2, time + 0.025, track.step * 0.45, 'triangle', 0.022, this.music)
+    }
+    if (track.hat > 0) {
+      if (index % 2 === 0) this.hat(time, index % 4 === 2, track.hat)
+      this.shekere(time, track.hat * (index % 2 ? 0.85 : 0.5))
+    }
+    if (track.bell[index] && index % 3 === 0) this.tone(988, time + 0.03, 0.055, 'square', 0.02, this.music)
     void PENTA
   }
 
@@ -265,19 +288,38 @@ export class AudioBus {
   }
 
   private talking(time: number, amount: number): void {
+    this.djembe(time, amount)
+  }
+
+  private djembe(time: number, amount: number): void {
     const ctx = this.ctx
     if (!ctx || !this.music) return
-    const o = ctx.createOscillator()
-    const g = ctx.createGain()
-    o.type = 'sine'
-    o.frequency.setValueAtTime(180, time)
-    o.frequency.exponentialRampToValueAtTime(90 + amount * 70, time + 0.12)
-    g.gain.setValueAtTime(0.08 * amount, time)
-    g.gain.exponentialRampToValueAtTime(0.0001, time + 0.16)
-    o.connect(g)
-    g.connect(this.music)
-    o.start(time)
-    o.stop(time + 0.18)
+    const boom = ctx.createOscillator()
+    const bg = ctx.createGain()
+    boom.type = 'sine'
+    boom.frequency.setValueAtTime(140, time)
+    boom.frequency.exponentialRampToValueAtTime(58 + amount * 40, time + 0.11)
+    bg.gain.setValueAtTime(0.12 * amount, time)
+    bg.gain.exponentialRampToValueAtTime(0.0001, time + 0.18)
+    boom.connect(bg)
+    bg.connect(this.music)
+    boom.start(time)
+    boom.stop(time + 0.2)
+    const slap = ctx.createOscillator()
+    const sg = ctx.createGain()
+    slap.type = 'triangle'
+    slap.frequency.setValueAtTime(320 + amount * 80, time)
+    slap.frequency.exponentialRampToValueAtTime(180, time + 0.07)
+    sg.gain.setValueAtTime(0.055 * amount, time)
+    sg.gain.exponentialRampToValueAtTime(0.0001, time + 0.09)
+    slap.connect(sg)
+    sg.connect(this.music)
+    slap.start(time)
+    slap.stop(time + 0.1)
+  }
+
+  private shekere(time: number, gain: number): void {
+    this.noiseBurst(time, 5200, 0.045, gain, 'highpass', this.music)
   }
 
   private chirp(time: number, from: number, to: number): void {
@@ -334,7 +376,7 @@ export class AudioBus {
       this.master.gain.value = this.muted ? 0 : 1
       this.master.connect(this.ctx.destination)
       this.music = this.ctx.createGain()
-      this.music.gain.value = 1
+      this.music.gain.value = 0.92
       this.music.connect(this.master)
       const buffer = this.ctx.createBuffer(1, this.ctx.sampleRate, this.ctx.sampleRate)
       const data = buffer.getChannelData(0)

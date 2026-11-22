@@ -23,8 +23,11 @@ body {
   overflow: hidden;
   background: #083038;
   touch-action: none;
+  overscroll-behavior: none;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-text-size-adjust: 100%;
 }
 
 #view {
@@ -34,6 +37,7 @@ body {
   height: 100%;
   display: block;
   touch-action: none;
+  overscroll-behavior: none;
 }
 
 #vignette {
@@ -54,6 +58,8 @@ a {
 
 button {
   cursor: pointer;
+  touch-action: manipulation;
+  min-height: 44px;
 }
 
 .hidden { display: none !important; }
@@ -65,8 +71,10 @@ button {
 }
 
 .icon-btn {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  min-height: 52px;
   border-radius: 50%;
   background: rgba(255, 246, 232, 0.92);
   color: var(--ink);
@@ -99,7 +107,7 @@ button {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: calc(10px + env(safe-area-inset-top)) 16px calc(14px + env(safe-area-inset-bottom));
+  padding: calc(10px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
   pointer-events: none;
   background:
     linear-gradient(180deg, rgba(6, 36, 44, 0.62) 0%, rgba(6, 36, 44, 0.05) 30%, rgba(6, 36, 44, 0) 48%, rgba(6, 24, 28, 0.88) 100%);
@@ -338,8 +346,9 @@ button {
 
 .btn.small {
   width: auto;
+  min-height: 48px;
   font-size: 18px;
-  padding: 10px 14px;
+  padding: 12px 18px;
   box-shadow: 0 4px 0 var(--coral-deep);
 }
 
@@ -494,7 +503,7 @@ button {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: calc(10px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom));
+  padding: calc(10px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
   pointer-events: none;
 }
 
@@ -678,4 +687,31 @@ button {
   .overlay { place-items: center; }
   .title { justify-content: flex-end; gap: 12px; }
   .hero { margin-bottom: auto; }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .icon-btn {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+  }
+  .title {
+    padding-top: calc(6px + env(safe-area-inset-top));
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+  .hero { padding: 6px 10px 8px; }
+  .logo { font-size: clamp(36px, 12vh, 64px); }
+  #score { font-size: clamp(28px, 9vh, 52px); }
+  .btn.small { min-height: 44px; padding: 8px 14px; font-size: 16px; }
+  .hints { margin-top: 6px; }
+  .hud {
+    padding-top: calc(6px + env(safe-area-inset-top));
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (orientation: portrait) {
+  .hud-bottom { padding-bottom: 2px; }
+  .btn.small { min-width: 132px; }
 }

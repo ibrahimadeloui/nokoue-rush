@@ -13,16 +13,21 @@ const GEO = {
   torus: new THREE.TorusGeometry(1, 0.28, 6, 12),
 }
 
-const vcMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true })
+const vcMat = new THREE.MeshPhongMaterial({ vertexColors: true, flatShading: true, shininess: 14, specular: 0x3a2a16 })
 const basicVC = new THREE.MeshBasicMaterial({ vertexColors: true })
 
-const colorMats = new Map<string, THREE.MeshLambertMaterial>()
+const colorMats = new Map<string, THREE.MeshPhongMaterial>()
 
-function lambert(hex: number, flat = true): THREE.MeshLambertMaterial {
+function lambert(hex: number, flat = true): THREE.MeshPhongMaterial {
   const key = `${hex}:${flat ? 1 : 0}`
   let material = colorMats.get(key)
   if (!material) {
-    material = new THREE.MeshLambertMaterial({ color: hex, flatShading: flat })
+    material = new THREE.MeshPhongMaterial({
+      color: hex,
+      flatShading: flat,
+      shininess: 22,
+      specular: 0x4a3820,
+    })
     colorMats.set(key, material)
   }
   return material
@@ -485,13 +490,20 @@ export function makeSegment(zone: ZoneId, variant = 0): THREE.Group {
   return group
 }
 
-function roadMarks(baker: Baker, color = 0xf7edd4): void {
-  for (let k = -4; k <= 4; k++) {
-    if (Math.abs(k) % 2 === 0) continue
-    const z = k * 2
-    baker.put(GEO.box, color, -0.71, 0.18, z, 0.08, 0.03, 0.85)
-    baker.put(GEO.box, color, 0.71, 0.18, z, 0.08, 0.03, 0.85)
+function roadMarks(baker: Baker, color = 0xf8f4ea): void {
+  for (let k = -5; k <= 5; k++) {
+    const z = k * 1.85
+    if (k % 2 === 0) continue
+    baker.put(GEO.box, color, -0.71, 0.185, z, 0.09, 0.035, 0.95)
+    baker.put(GEO.box, color, 0.71, 0.185, z, 0.09, 0.035, 0.95)
   }
+}
+
+function roadCurb(baker: Baker): void {
+  baker.put(GEO.box, 0xd4c4a4, -2.38, 0.2, 0, 0.14, 0.1, 20)
+  baker.put(GEO.box, 0xd4c4a4, 2.38, 0.2, 0, 0.14, 0.1, 20)
+  baker.put(GEO.box, 0xf6f1e4, -2.22, 0.188, 0, 0.07, 0.025, 20)
+  baker.put(GEO.box, 0xf6f1e4, 2.22, 0.188, 0, 0.07, 0.025, 20)
 }
 
 function bunting(baker: Baker, z = 0.4): void {
@@ -508,12 +520,12 @@ function arch(baker: Baker, z = -9.2): void {
 }
 
 function buildMarche(baker: Baker, variant: number): void {
-  baker.put(GEO.box, 0xe7d3a4, 0.4, -0.08, 0, 16, 0.12, 20)
+  baker.put(GEO.box, 0xe8d5a6, 0.4, -0.08, 0, 16, 0.12, 20)
   baker.put(GEO.box, 0x2a86b8, -6.4, 0.02, 0, 4.4, 0.1, 20)
   baker.put(GEO.box, 0x49b4d6, -6.6, 0.09, 0, 2.2, 0.04, 20)
-  baker.put(GEO.box, 0xd7b57a, 0, 0.08, 0, 4.7, 0.16, 20)
-  baker.put(GEO.box, 0xc49a62, -2.32, 0.17, 0, 0.08, 0.03, 20)
-  baker.put(GEO.box, 0xc49a62, 2.32, 0.17, 0, 0.08, 0.03, 20)
+  baker.put(GEO.box, 0x7d6c55, 0, 0.08, 0, 4.8, 0.16, 20)
+  baker.put(GEO.box, 0x8b7a62, 0, 0.155, 0, 4.55, 0.02, 20)
+  roadCurb(baker)
   roadMarks(baker)
   const a = AWNINGS[variant % AWNINGS.length]
   const b = AWNINGS[(variant + 3) % AWNINGS.length]
@@ -540,8 +552,9 @@ function buildLagune(baker: Baker, variant: number): void {
   baker.put(GEO.box, 0x1a6f99, 0, -0.12, 0, 18, 0.16, 20)
   baker.put(GEO.box, 0x49b4d6, 2.4, -0.02, 0, 6, 0.04, 20)
   baker.put(GEO.box, 0x8d5a32, 0, 0.1, 0, 4.5, 0.16, 20)
+  baker.put(GEO.box, 0xa56b3c, 0, 0.175, 0, 4.4, 0.02, 20)
   for (let k = -4; k <= 4; k++) baker.put(GEO.box, 0x6b4228, 0, 0.19, k * 2.1, 4.4, 0.03, 0.18)
-  roadMarks(baker, 0xf0e2c4)
+  roadMarks(baker, 0xf7ead0)
   stiltHouse(baker, -3.7, -6, variant % 2 ? 0x14988f : 0xc4784a)
   stiltHouse(baker, 3.75, -2, 0xf0c430)
   stiltHouse(baker, -3.6, 5, 0xff6b4a)
@@ -559,11 +572,11 @@ function buildLagune(baker: Baker, variant: number): void {
 }
 
 function buildPorto(baker: Baker, variant: number): void {
-  baker.put(GEO.box, 0xe6d3b0, 0, -0.06, 0, 16, 0.1, 20)
-  baker.put(GEO.box, 0xd7b896, 0, 0.08, 0, 4.6, 0.16, 20)
-  baker.put(GEO.box, 0xb08968, -2.28, 0.17, 0, 0.08, 0.03, 20)
-  baker.put(GEO.box, 0xb08968, 2.28, 0.17, 0, 0.08, 0.03, 20)
-  roadMarks(baker, 0xf7edd4)
+  baker.put(GEO.box, 0xe8d6b4, 0, -0.06, 0, 16, 0.1, 20)
+  baker.put(GEO.box, 0x7a6b56, 0, 0.08, 0, 4.7, 0.16, 20)
+  baker.put(GEO.box, 0x887866, 0, 0.155, 0, 4.5, 0.02, 20)
+  roadCurb(baker)
+  roadMarks(baker, 0xf8f4ea)
   facade(baker, -3.7, -5.5, 0xf4efe4, 0xc4784a)
   facade(baker, 3.7, 2.5, 0xf7f1e3, 0x1f8a4c)
   palm(baker, -4.6, 6)
@@ -581,8 +594,10 @@ function buildPlage(baker: Baker, variant: number): void {
   baker.put(GEO.box, 0xf0ddb4, 0, -0.08, 0, 16, 0.12, 20)
   baker.put(GEO.box, 0x1f7eb8, 6.2, -0.02, 0, 6.2, 0.12, 20)
   baker.put(GEO.box, 0xf7fbff, 4.2, 0.06, 0, 0.35, 0.04, 20)
-  baker.put(GEO.box, 0xf3e2b8, 0, 0.08, 0, 4.5, 0.14, 20)
-  roadMarks(baker, 0xfff6e0)
+  baker.put(GEO.box, 0x8a7a62, 0, 0.08, 0, 4.6, 0.14, 20)
+  baker.put(GEO.box, 0x96866e, 0, 0.15, 0, 4.4, 0.02, 20)
+  roadCurb(baker)
+  roadMarks(baker, 0xfffaf0)
   umbrella(baker, -3.3, -5, 0xff6b4a)
   umbrella(baker, -3.5, 2, 0xf0c430)
   umbrella(baker, -3.2, 6.5, 0x14988f)
@@ -594,9 +609,11 @@ function buildPlage(baker: Baker, variant: number): void {
 }
 
 function fabrics(baker: Baker, x: number, z: number): void {
-  baker.put(GEO.box, 0xff6b4a, x, 1.45, z + 0.45, 0.08, 0.55, 0.35)
-  baker.put(GEO.box, 0x3c4d96, x, 1.42, z - 0.15, 0.08, 0.48, 0.28)
-  baker.put(GEO.box, 0xf0c430, x, 1.4, z + 0.15, 0.06, 0.4, 0.22)
+  baker.put(GEO.box, 0xff6b4a, x, 1.52, z + 0.45, 0.08, 0.7, 0.38)
+  baker.put(GEO.box, 0x3c4d96, x, 1.48, z - 0.18, 0.08, 0.62, 0.3)
+  baker.put(GEO.box, 0xf0c430, x, 1.46, z + 0.12, 0.06, 0.52, 0.24)
+  baker.put(GEO.box, 0x14988f, x, 1.4, z + 0.3, 0.06, 0.42, 0.2)
+  baker.put(GEO.box, 0xe23b32, x + 0.06, 1.36, z - 0.02, 0.05, 0.36, 0.18)
 }
 
 function stiltHouse(baker: Baker, x: number, z: number, color: number): void {
@@ -642,8 +659,9 @@ function palace(baker: Baker, x: number, z: number): void {
 }
 
 function umbrella(baker: Baker, x: number, z: number, color: number): void {
-  baker.put(GEO.cyl, 0xf7f1e3, x, 0.7, z, 0.04, 1.3, 0.04)
-  baker.put(GEO.cone, color, x, 1.45, z, 0.55, 0.28, 0.55)
+  baker.put(GEO.cyl, 0xf7f1e3, x, 0.75, z, 0.035, 1.45, 0.035)
+  baker.put(GEO.cone, color, x, 1.52, z, 0.7, 0.32, 0.7)
+  baker.put(GEO.cone, 0xfff6e8, x, 1.48, z, 0.22, 0.1, 0.22)
 }
 
 function beachHut(baker: Baker, x: number, z: number, color: number): void {
@@ -653,25 +671,47 @@ function beachHut(baker: Baker, x: number, z: number, color: number): void {
 
 function stall(baker: Baker, side: number, z: number, awning: number): void {
   const x = side * 3.15
-  baker.put(GEO.box, 0xa56b3c, x, 0.5, z, 1.2, 0.72, 1.05)
-  baker.put(GEO.box, awning, x, 1.28, z, 1.5, 0.08, 1.3)
-  baker.put(GEO.cone, awning, x, 1.62, z, 0.72, 0.48, 0.72)
-  const fruits = [0xff8c32, 0xe23b32, 0xf0c430, 0x3cb364, 0xff6b8a]
-  for (let i = 0; i < 4; i++) {
-    baker.put(GEO.sphereLow, fruits[(i + Math.abs(z | 0)) % fruits.length], x - 0.36 + i * 0.22, 0.98, z + 0.18, 0.12, 0.12, 0.12)
+  for (const [dx, dz] of [[-0.5, -0.46], [0.5, -0.46], [-0.5, 0.46], [0.5, 0.46]] as const) {
+    baker.put(GEO.cyl, 0x6b4228, x + dx, 0.95, z + dz, 0.04, 1.55, 0.04)
   }
-  baker.put(GEO.cyl, 0x3c4d96, x, 0.98, z - 0.28, 0.09, 0.36, 0.09, 0, 0, Math.PI / 2)
-  baker.put(GEO.cyl, 0xf0c430, x, 1.06, z - 0.28, 0.08, 0.28, 0.08, 0, 0, Math.PI / 2)
-  baker.put(GEO.box, awning, x + side * 0.55, 1.05, z, 0.08, 1.15, 1.15)
+  baker.put(GEO.box, 0x8a5330, x, 0.48, z, 1.22, 0.7, 1.08)
+  baker.put(GEO.box, 0xc4894a, x, 0.86, z, 1.28, 0.07, 1.14)
+  baker.put(GEO.box, awning, x, 1.34, z, 1.62, 0.07, 1.38)
+  baker.put(GEO.cone, awning, x, 1.7, z, 0.78, 0.5, 0.78)
+  baker.put(GEO.box, 0x5a3218, x, 1.38, z, 1.62, 0.03, 0.08)
+  baker.put(GEO.box, awning, x, 0.42, z + 0.54, 1.18, 0.46, 0.05)
+  const fruits = [0xff8c32, 0xe23b32, 0xf0c430, 0x3cb364, 0xff6b8a, 0xfff6e8]
+  for (let i = 0; i < 6; i++) {
+    const fx = x - 0.42 + (i % 3) * 0.22
+    const fz = z + 0.22 - Math.floor(i / 3) * 0.22
+    baker.put(GEO.sphereLow, fruits[(i + Math.abs(z | 0)) % fruits.length], fx, 0.98, fz, 0.1, 0.1, 0.1)
+  }
+  baker.put(GEO.cyl, 0x8d5a32, x + 0.32, 0.98, z + 0.12, 0.16, 0.18, 0.16)
+  baker.put(GEO.sphereLow, 0xff8c32, x + 0.32, 1.08, z + 0.12, 0.1, 0.08, 0.1)
+  baker.put(GEO.cyl, 0x3c4d96, x - 0.1, 1.0, z - 0.28, 0.09, 0.36, 0.09, 0, 0, Math.PI / 2)
+  baker.put(GEO.cyl, 0xf0c430, x - 0.1, 1.08, z - 0.28, 0.08, 0.28, 0.08, 0, 0, Math.PI / 2)
+  baker.put(GEO.box, 0x7a4a28, x - 0.34, 0.36, z - 0.15, 0.28, 0.28, 0.28)
+  baker.put(GEO.box, awning, x + side * 0.62, 1.12, z, 0.08, 1.28, 1.2)
 }
 
 function palm(baker: Baker, x: number, z: number): void {
-  baker.put(GEO.cyl, 0x8a5a32, x, 1.15, z, 0.1, 2.2, 0.1)
-  baker.put(GEO.sphereLow, 0x2f8f4e, x, 2.35, z, 0.55, 0.32, 0.5)
-  baker.put(GEO.sphereLow, 0x3cb364, x + 0.38, 2.15, z + 0.05, 0.36, 0.22, 0.32)
-  baker.put(GEO.sphereLow, 0x257a3e, x - 0.34, 2.2, z, 0.34, 0.22, 0.3)
-  baker.put(GEO.sphereLow, 0x49a85a, x, 2.1, z - 0.32, 0.28, 0.18, 0.28)
-  baker.put(GEO.sphereLow, 0x6b3e23, x + 0.05, 2.02, z, 0.07, 0.08, 0.07)
+  baker.put(GEO.cyl, 0x6b4228, x, 0.35, z, 0.13, 0.7, 0.16)
+  baker.put(GEO.cyl, 0x8a5a32, x, 1.15, z, 0.11, 1.15, 0.12)
+  baker.put(GEO.cyl, 0x9a6a3c, x, 1.95, z, 0.08, 0.7, 0.09)
+  baker.put(GEO.sphereLow, 0x2f8f4e, x, 2.42, z, 0.42, 0.22, 0.42)
+  const fronds: Array<[number, number, number, number, number]> = [
+    [0.55, 2.22, 0.05, 0x3cb364, 0],
+    [-0.5, 2.26, 0.08, 0x257a3e, 0.4],
+    [0.08, 2.18, -0.52, 0x49a85a, 0.8],
+    [0.12, 2.2, 0.5, 0x2f8f4e, 1.2],
+    [0.4, 2.32, -0.36, 0x3cb364, 1.7],
+    [-0.38, 2.3, -0.3, 0x1f6b34, 2.2],
+  ]
+  for (const [dx, y, dz, color] of fronds) {
+    baker.put(GEO.sphereLow, color, x + dx, y, z + dz, 0.38, 0.12, 0.22)
+  }
+  baker.put(GEO.sphereLow, 0x6b3e23, x + 0.08, 2.12, z + 0.04, 0.07, 0.08, 0.07)
+  baker.put(GEO.sphereLow, 0x5a3218, x - 0.06, 2.1, z - 0.05, 0.06, 0.07, 0.06)
 }
 
 function obstacleShadow(radius: number): THREE.Mesh {
@@ -834,8 +874,9 @@ export function makeSky(): { mesh: THREE.Mesh; paint: (top: string, mid: string,
     if (!ctx) return
     const gradient = ctx.createLinearGradient(0, 0, 0, 256)
     gradient.addColorStop(0, top)
-    gradient.addColorStop(0.55, mid)
-    gradient.addColorStop(1, horizon)
+    gradient.addColorStop(0.38, mid)
+    gradient.addColorStop(0.72, horizon)
+    gradient.addColorStop(1, '#f6c07a')
     ctx.fillStyle = gradient
     ctx.fillRect(0, 0, 4, 256)
     texture.needsUpdate = true
@@ -887,6 +928,47 @@ export function makeCloud(): THREE.Mesh {
   return baker.mesh(basicVC)
 }
 
-export function makeSun(): THREE.Mesh {
-  return new THREE.Mesh(new THREE.SphereGeometry(1.5, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffe08a }))
+export function makeSun(): THREE.Group {
+  const group = new THREE.Group()
+  const core = new THREE.Mesh(
+    new THREE.SphereGeometry(1.55, 20, 16),
+    new THREE.MeshBasicMaterial({ color: 0xffe08a, fog: false }),
+  )
+  const glow = new THREE.Mesh(
+    new THREE.SphereGeometry(2.8, 16, 12),
+    new THREE.MeshBasicMaterial({
+      color: 0xffc16a,
+      transparent: true,
+      opacity: 0.28,
+      depthWrite: false,
+      fog: false,
+    }),
+  )
+  const halo = new THREE.Mesh(
+    new THREE.SphereGeometry(4.4, 16, 12),
+    new THREE.MeshBasicMaterial({
+      color: 0xffd9a0,
+      transparent: true,
+      opacity: 0.12,
+      depthWrite: false,
+      fog: false,
+    }),
+  )
+  group.add(halo, glow, core)
+  return group
+}
+
+export function tagShadows(root: THREE.Object3D, cast = true, receive = true): void {
+  root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh
+    if (!mesh.isMesh) return
+    const material = mesh.material as THREE.Material
+    if (material.transparent && 'opacity' in material && (material as THREE.MeshBasicMaterial).opacity < 0.5) {
+      mesh.castShadow = false
+      mesh.receiveShadow = false
+      return
+    }
+    mesh.castShadow = cast
+    mesh.receiveShadow = receive
+  })
 }

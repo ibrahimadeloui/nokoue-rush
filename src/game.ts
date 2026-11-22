@@ -27,6 +27,7 @@ import {
   makeSun,
   makeTaxi,
   makeZoneBanner,
+  tagShadows,
   type CopParts,
   type RunnerParts,
 } from './models'
@@ -233,7 +234,14 @@ export class Game {
   private shownZone: ZoneId = 'marche'
   private runTime = 0
   private hornCool = 0
-  private pose = { lL: 0, lR: 0, kL: 0, kR: 0, aL: 0, aR: 0, bx: 0, by: 0, bz: 0 }
+  private pose = { lL: 0, lR: 0, kL: 0, kR: 0, aL: 0, aR: 0, bx: 0, by: 0, bz: 0, lean: 0, yaw: 0, squish: 1 }
+  private laneVel = 0
+  private landT = 0
+  private jumpSquash = 0
+  private sunLight: THREE.DirectionalLight | null = null
+  private dprCap = 1.5
+  private fpsEma = 60
+  private dprClock = 0
   private readonly slots: { root: THREE.Group; zone: ZoneId; variant: number }[] = []
   private readonly zoneProtos: Record<ZoneId, THREE.Group[]>
   private readonly sky: ReturnType<typeof makeSky>
@@ -265,21 +273,38 @@ export class Game {
       powerPreference: 'high-performance',
     })
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
-    this.renderer.setClearColor(0x8ecff0, 1)
-    this.scene.background = new THREE.Color(0x8ecff0)
-    this.scene.fog = new THREE.Fog(0xc5e4f5, 16, 54)
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping
+    this.renderer.toneMappingExposure = 1.12
+    this.renderer.shadowMap.enabled = true
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    this.renderer.setClearColor(0xf3c090, 1)
+    this.scene.background = new THREE.Color(0xf3c090)
+    this.scene.fog = new THREE.Fog(0xf3c090, 22, 68)
 
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.1, 140)
     this.input = new Input(canvas)
 
-    const hemi = new THREE.HemisphereLight(0xfff1d2, 0xd08a58, 1.45)
-    const sun = new THREE.DirectionalLight(0xfff6df, 1.7)
-    sun.position.set(4, 14, 8)
-    const rim = new THREE.DirectionalLight(0x8fd4ff, 0.55)
-    rim.position.set(-6, 5, -10)
-    const fill = new THREE.DirectionalLight(0xffb36b, 0.35)
-    fill.position.set(-2, 6, 12)
+    const hemi = new THREE.HemisphereLight(0xffe6c0, 0xc47a42, 0.95)
+    const sun = new THREE.DirectionalLight(0xffe0a8, 1.85)
+    sun.position.set(7, 16, 9)
+    sun.castShadow = true
+    const mapSize = window.innerWidth < 720 ? 512 : 1024
+    sun.shadow.mapSize.set(mapSize, mapSize)
+    sun.shadow.camera.near = 2
+    sun.shadow.camera.far = 42
+    sun.shadow.camera.left = -11
+    sun.shadow.camera.right = 11
+    sun.shadow.camera.top = 14
+    sun.shadow.camera.bottom = -8
+    sun.shadow.bias = -0.0009
+    sun.shadow.normalBias = 0.045
+    sun.shadow.radius = 2.2
+    const rim = new THREE.DirectionalLight(0xffc888, 0.38)
+    rim.position.set(-7, 6, -8)
+    const fill = new THREE.DirectionalLight(0xffb56b, 0.48)
+    fill.position.set(-3, 5, 12)
     this.scene.add(hemi, sun, rim, fill)
+    this.sunLight = sun
 
     this.sky = makeSky()
     this.scene.add(this.sky.mesh)
@@ -292,6 +317,9 @@ export class Game {
       lagune: [makeSegment('lagune', 0), makeSegment('lagune', 1)],
       porto: [makeSegment('porto', 0), makeSegment('porto', 1)],
       plage: [makeSegment('plage', 0), makeSegment('plage', 1)],
+    }
+    for (const list of Object.values(this.zoneProtos)) {
+      for (const proto of list) tagShadows(proto)
     }
     for (let i = 0; i < SEG_COUNT; i++) {
       const root = new THREE.Group()
@@ -311,6 +339,7 @@ export class Game {
     }
 
     this.runner = makeRunner()
+    tagShadows(this.runner.root)
     this.scene.add(this.runner.root)
     this.runner.boards[this.equipped].visible = true
     for (const id of Object.keys(this.runner.boards) as BoardId[]) {
@@ -318,6 +347,7 @@ export class Game {
     }
 
     this.cop = makeCop()
+    tagShadows(this.cop.root)
     this.cop.root.position.set(-1.1, 0, 2)
     this.cop.root.scale.setScalar(0.8)
     this.scene.add(this.cop.root)
@@ -379,11 +409,14 @@ export class Game {
     this.boardUsed = false
     this.lane = 1
     this.playerX = 0
+    this.laneVel = 0
     this.py = 0
     this.vy = 0
     this.grounded = true
     this.sliding = false
     this.slideT = 0
+    this.landT = 0
+    this.jumpSquash = 0
     this.spawnCool = 1.35
     this.line = ''
     this.toast = ''
@@ -625,6 +658,7 @@ export class Game {
     this.updateSparks(dt)
     this.updateCamera(dt)
     this.audio.tick()
+    this.tickDpr(dt)
     this.emit()
   }
 
@@ -643,9 +677,13 @@ export class Game {
       return
     }
     if (this.phase !== 'playing') return
-    if (action === 'left') this.lane = Math.max(0, this.lane - 1)
-    else if (action === 'right') this.lane = Math.min(2, this.lane + 1)
-    else if (action === 'up') this.tryJump()
+    if (action === 'left' || action === 'right') {
+      const next = action === 'left' ? Math.max(0, this.lane - 1) : Math.min(2, this.lane + 1)
+      if (next !== this.lane) {
+        this.lane = next
+        this.audio.swish()
+      }
+    } else if (action === 'up') this.tryJump()
     else if (action === 'down') this.trySlide()
     else if (action === 'board') this.activate()
   }
@@ -657,6 +695,7 @@ export class Game {
     this.grounded = false
     const boost = this.boardActive && this.perk === 'jump' ? 1.12 : 1
     this.vy = JUMP_V * boost
+    this.jumpSquash = 0.1
     this.audio.jump()
     this.bump('jumps', 1)
   }
@@ -683,6 +722,7 @@ export class Game {
         this.py = 0
         this.vy = 0
         this.grounded = true
+        this.landT = 0.2
       }
     }
     if (this.sliding) {
@@ -693,9 +733,12 @@ export class Game {
 
   private movePlayer(dt: number): void {
     const target = LANES[this.lane]
-    const diff = target - this.playerX
-    const step = Math.sign(diff) * Math.min(Math.abs(diff), 12 * dt)
-    this.playerX += step
+    const omega = 13.2
+    const x = this.playerX - target
+    const exp = Math.exp(-omega * dt)
+    const next = target + (x + (this.laneVel + omega * x) * dt) * exp
+    this.laneVel = dt > 1e-5 ? (next - this.playerX) / dt : 0
+    this.playerX = next
   }
 
   private speedNow(): number {
@@ -1028,64 +1071,110 @@ export class Game {
 
   private animate(dt: number): void {
     const speed = this.phase === 'playing' ? this.speedNow() : 8
-    this.runPhase += dt * (7.5 + speed * 0.22)
+    this.runPhase += dt * (8.2 + speed * 0.28)
+    if (this.landT > 0) this.landT = Math.max(0, this.landT - dt)
+    if (this.jumpSquash > 0) this.jumpSquash = Math.max(0, this.jumpSquash - dt)
     const swing = Math.sin(this.runPhase)
     const air = this.py > 0.08
     const slide = this.sliding
     const stumble = this.stumbleT > 0
+    const land = this.landT / 0.2
+    const takeoff = this.jumpSquash / 0.1
 
-    let lL = swing * 0.85
-    let lR = -swing * 0.85
-    let kL = Math.max(0, -swing) * 1.25
-    let kR = Math.max(0, swing) * 1.25
-    let aL = -swing * 0.8
-    let aR = swing * 0.8
+    let lL = swing * 1.05
+    let lR = -swing * 1.05
+    let kL = Math.max(0, -swing) * 1.45 + Math.max(0, swing) * 0.18
+    let kR = Math.max(0, swing) * 1.45 + Math.max(0, -swing) * 0.18
+    let aL = -swing * 1.05
+    let aR = swing * 1.05
     let bobX = 0
     let bobZ = 0
-    let bobY = Math.abs(Math.sin(this.runPhase * 2)) * 0.05
+    let bobY = Math.abs(Math.sin(this.runPhase * 2)) * 0.065
+    let yaw = swing * 0.12
+    let squish = 1
     if (air) {
-      lL = -0.7
-      lR = 0.35
-      kL = 1.15
-      kR = 0.85
-      aL = -1.05
-      aR = -0.45
-      bobY = 0
+      const rising = this.vy > 1.2
+      if (rising) {
+        lL = -0.55
+        lR = 0.45
+        kL = 0.85
+        kR = 1.05
+        aL = -1.25
+        aR = -0.35
+        bobY = 0.05
+        squish = 1.08
+      } else {
+        lL = -0.2
+        lR = 0.15
+        kL = 1.15
+        kR = 1.2
+        aL = -0.45
+        aR = 0.2
+        bobY = -0.02
+        squish = 1.04
+      }
+      yaw = 0.04
     } else if (slide) {
-      lL = 0.4
-      lR = 0.25
-      kL = 1.4
-      kR = 1.5
-      aL = 0.55
-      aR = 0.4
-      bobX = -1.15
-      bobY = -0.12
-      bobZ = 0.22
+      lL = 0.55
+      lR = 0.32
+      kL = 1.55
+      kR = 1.65
+      aL = 0.9
+      aR = 0.45
+      bobX = -1.12
+      bobY = -0.18
+      bobZ = 0.28
+      yaw = 0
+      squish = 0.92
+    }
+    if (takeoff > 0 && !slide) {
+      squish = 1 - 0.16 * takeoff
+      bobY -= 0.06 * takeoff
+      kL += 0.35 * takeoff
+      kR += 0.35 * takeoff
+    }
+    if (land > 0 && !air && !slide) {
+      squish = 1 - 0.14 * land
+      bobY -= 0.1 * land
+      kL += 0.55 * land
+      kR += 0.55 * land
+      aL += 0.2 * land
+      aR += 0.2 * land
     }
     if (stumble) bobX += 0.4
-    const rate = air || slide ? 10 : 16
+    const leanTarget = THREE.MathUtils.clamp(-this.laneVel * 0.09, -0.42, 0.42)
+    const rate = air || slide ? 11 : 18
     this.pose.lL = this.damp(this.pose.lL, lL, dt, rate)
     this.pose.lR = this.damp(this.pose.lR, lR, dt, rate)
     this.pose.kL = this.damp(this.pose.kL, kL, dt, rate)
     this.pose.kR = this.damp(this.pose.kR, kR, dt, rate)
     this.pose.aL = this.damp(this.pose.aL, aL, dt, rate)
     this.pose.aR = this.damp(this.pose.aR, aR, dt, rate)
-    this.pose.bx = this.damp(this.pose.bx, bobX, dt, 10)
-    this.pose.by = this.damp(this.pose.by, bobY, dt, 12)
-    this.pose.bz = this.damp(this.pose.bz, bobZ, dt, 10)
+    this.pose.bx = this.damp(this.pose.bx, bobX, dt, 11)
+    this.pose.by = this.damp(this.pose.by, bobY, dt, 14)
+    this.pose.bz = this.damp(this.pose.bz, bobZ, dt, 11)
+    this.pose.lean = this.damp(this.pose.lean, leanTarget, dt, 10)
+    this.pose.yaw = this.damp(this.pose.yaw, yaw, dt, 12)
+    this.pose.squish = this.damp(this.pose.squish, squish, dt, 16)
     this.runner.legL.rotation.x = this.pose.lL
     this.runner.legR.rotation.x = this.pose.lR
     this.runner.kneeL.rotation.x = this.pose.kL
     this.runner.kneeR.rotation.x = this.pose.kR
     this.runner.armL.rotation.x = this.pose.aL
     this.runner.armR.rotation.x = this.pose.aR
+    this.runner.armL.rotation.z = 0.12
+    this.runner.armR.rotation.z = -0.12
     this.runner.afro.rotation.x = Math.sin(this.runPhase * 2) * 0.06
     this.runner.afro.position.y = Math.abs(Math.sin(this.runPhase)) * 0.012
 
+    const lean = this.pose.lean + (stumble ? Math.sin(this.time * 28) * 0.16 : 0)
     this.runner.bob.rotation.x = this.pose.bx
-    this.runner.bob.rotation.z = stumble ? Math.sin(this.time * 28) * 0.16 : 0
+    this.runner.bob.rotation.y = this.pose.yaw
+    this.runner.bob.rotation.z = lean
     this.runner.bob.position.y = this.pose.by
     this.runner.bob.position.z = this.pose.bz
+    const sq = this.pose.squish
+    this.runner.bob.scale.set(1 + (1 - sq) * 0.18, sq, 1 + (1 - sq) * 0.18)
     this.runner.root.position.set(this.playerX, this.py, 0)
     this.runner.shadow.position.y = -this.py + 0.035
     const shadowScale = 1 - Math.min(0.55, this.py * 0.32)
@@ -1186,7 +1275,7 @@ export class Game {
   private hint(): string {
     if (this.phase !== 'playing' || this.best > 700) return ''
     if (this.distance < 40) return 'Balaye ← → pour changer de voie'
-    if (this.distance < 85) return 'Balaye ↑ pour sauter les caisses'
+    if (this.distance < 85) return 'Tape, ou balaye ↑, pour sauter'
     if (this.distance < 140) return 'Balaye ↓ pour glisser sous les banderoles'
     if (this.distance < 200 && !this.boardUsed) return 'Double tape, ou F, pour la planche'
     return ''
@@ -1197,6 +1286,7 @@ export class Game {
     for (let i = 0; i < count; i++) {
       const mesh = i === 0 ? proto : proto.clone(true)
       mesh.visible = false
+      tagShadows(mesh)
       this.scene.add(mesh)
       this.ents.push({
         kind,
@@ -1463,9 +1553,36 @@ export class Game {
     this.camera.fov = (vfov * 180) / Math.PI
     this.camera.aspect = aspect
     this.camera.updateProjectionMatrix()
-    const cap = width < 720 ? 1.35 : 1.6
+    this.applyDpr(width, height)
+  }
+
+  private tickDpr(dt: number): void {
+    if (dt > 0 && dt < 0.1) this.fpsEma = this.fpsEma * 0.92 + (1 / dt) * 0.08
+    this.dprClock += dt
+    if (this.dprClock < 0.8) return
+    this.dprClock = 0
+    const width = window.innerWidth
+    const maxCap = width < 720 ? 1.35 : 1.6
+    let cap = this.dprCap
+    if (this.fpsEma < 48) cap = Math.max(1, cap - 0.15)
+    else if (this.fpsEma > 57) cap = Math.min(maxCap, cap + 0.08)
+    if (Math.abs(cap - this.dprCap) < 0.04) return
+    this.dprCap = cap
+    this.applyDpr(width, Math.max(1, window.innerHeight))
+  }
+
+  private applyDpr(width: number, height: number): void {
+    const cap = Math.min(this.dprCap, width < 720 ? 1.35 : 1.6)
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cap))
     this.renderer.setSize(width, height, false)
+    if (this.sunLight) {
+      const size = cap <= 1.05 || width < 720 ? 512 : 1024
+      if (this.sunLight.shadow.mapSize.x !== size) {
+        this.sunLight.shadow.mapSize.set(size, size)
+        this.sunLight.shadow.map?.dispose()
+        this.sunLight.shadow.map = null
+      }
+    }
   }
 
   private onHide = (): void => {
